@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/nova
+nova_mark_dir_path: "/root/.marks"
+nova_mark_files_path:
+  controller_success: "{{ nova_mark_dir_path }}/nova_controller_success.mark"
+  compute_success: "{{ nova_mark_dir_path }}/nova_compute_success.mark"
+  nova_api_db_synced_mark_path: "{{ nova_mark_dir_path }}/nova_api_db_synced.mark"
+  nova_cell0_db_synced_mark_path: "{{ nova_mark_dir_path }}/nova_cell0_db_synced.mark"
+  nova_db_synced_mark_path: "{{ nova_mark_dir_path }}/nova_db_synced.mark"
+  nova_cell1_created_mark_path: "{{ nova_mark_dir_path }}/nova_cell1_created.mark"
+
+nova_db_conf:
+  mariadb_socket_path: "/var/lib/mysql/mysql.sock"
+  nova_api_db_name: "nova_api"
+  nova_db_name: nova
+  nova_cell0_db_name: "nova_cell0"
+  nova_db_user_name: nova
+  nova_db_user_password: "000000"
+
+nova_openstack_service_password:
+  nova: "000000"
+  placement: "000000"
+  neutron: "000000"
+
+nova_region: RegionOne
+
+nova_compute_packages:
+  - openstack-nova-compute
+  - qemu-kvm
+  - libvirt
+
+nova_packages:
+  - openstack-nova-api
+  - openstack-nova-conductor
+  - openstack-nova-novncproxy
+  - openstack-nova-scheduler
+
+nova_conf_template_src: templates/nova.conf.j2
+nova_conf_path: /etc/nova/nova.conf
+nova_compute_conf_template_src: templates/nova-compute.conf.j2
+nova_compute_conf_path: /etc/nova/nova.conf
+
+nova_openstack_rabbitmq_user_password: "000000"

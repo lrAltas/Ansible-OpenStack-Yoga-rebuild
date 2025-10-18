@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/memcache
+
+# 这个角色的变量如果你没有特殊要求，那么以下内容可以不用修改
+# If you do not have any special requirements, the following content can be left unchanged
+memcache_mark_dir_path: /root/.marks
+memcache_mark_file_path: "{{ memcache_mark_dir_path }}/memcache_success.mark"
+memcache_packages:
+  - memcached
+  - python3-memcached
+
+memcache_conf_template_src: templates/memcached.conf.j2
+memcache_conf_path: /etc/sysconfig/memcached

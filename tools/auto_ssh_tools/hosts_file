@@ -1,0 +1,14 @@
+[host1]
+username = root
+ip = 192.168.122.100
+password = liuziyi212
+
+[host2]
+username = root
+ip = 192.168.122.101
+password = liuziyi212
+
+[host3]
+username = root
+ip = 192.168.122.102
+password = liuziyi212

@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/nova/tasks/nova_compute.yml
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ nova_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if placement tasks have been run
+      ansible.builtin.stat:
+        name: "{{ nova_mark_files_path.controller_success }}"
+      register: nova_success_mark_file
+
+    - name: Skip if nova tasks have been run
+      ansible.builtin.meta: end_role
+      when: nova_success_mark_file.stat.exists
+
+- name: Install nova_compute service and deploy nova compute configuration
+  block:
+    - name: Install Nova Compute Packages
+      ansible.builtin.dnf:
+        name: "{{ nova_compute_packages }}"
+        state: present
+
+    - name: ensure libvirtd is running and enabled
+      ansible.builtin.service:
+        name: libvirtd
+        state: started
+        enabled: true
+
+    - name: use Templates to deploy nova compute configuration
+      ansible.builtin.template:
+        src: "{{ nova_compute_conf_template_src }}"
+        dest: "{{ nova_compute_conf_path }}"
+        mode: '0644'
+
+    - name: Restart nova-compute service
+      ansible.builtin.service:
+        name: openstack-nova-compute
+        state: restarted
+        enabled: true
+
+- name: Create mark file to indcate nova compute tasks have been run
+  ansible.builtin.file:
+    path: "{{ nova_mark_files_path.compute_success }}"
+    state: touch
+    mode: '0644'

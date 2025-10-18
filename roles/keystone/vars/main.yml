@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/keystone
+keystone_mark_dir_path: /root/.marks
+
+keystone_db_conf:
+  mariadb_socket_path: /var/lib/mysql/mysql.sock
+  db_name: keystone
+  db_user_name: keystone
+  db_user_password: "000000"
+
+keystone_packages:
+  - openstack-keystone
+  - httpd
+  - python3-mod_wsgi
+
+keystone_mark_files_path:
+  success: "{{ keystone_mark_dir_path }}/keystone_success.mark"
+  db_synced_mark_path: "{{ keystone_mark_dir_path }}/keystone_db_synced.mark"
+  credential_initialized_mark_path: "{{ keystone_mark_dir_path }}/keystone_credential_initialized.mark"
+  fernet_initialized_mark_path: "{{ keystone_mark_dir_path }}/keystone_fernet_initialized.mark"
+  keystone_bootstrap_mark_path: "{{ keystone_mark_dir_path }}/keystone_bootstrap.mark"
+  keystone_admin_sh_path: "{{ keystone_mark_dir_path }}/keystone_admin.mark"
+
+keystone_conf_template_src: templates/keystone.conf.j2
+keystone_conf_path: /etc/keystone/keystone.conf
+
+keystone_httpd_conf_template_src: templates/httpd.conf.j2
+keystone_httpd_conf_path: /etc/httpd/conf/httpd.conf
+
+keystone_httpd_conf_path_softlink_src: /usr/share/keystone/wsgi-keystone.conf
+keystone_httpd_conf_path_softlink_dest: /etc/httpd/conf.d/wsgi-keystone.conf
+
+keystone_admin_sh_template_src: templates/openstack-admin.sh.j2
+keystone_admin_sh_path: /etc/profile.d/openstack-admin.sh

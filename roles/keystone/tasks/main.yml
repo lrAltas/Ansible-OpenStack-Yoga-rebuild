@@ -1,0 +1,208 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/keystone
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ keystone_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if keystone tasks have been run
+      ansible.builtin.stat:
+        name: "{{ keystone_mark_files_path.success }}"
+      register: keystone_mark_file
+
+    - name: Skip if keystone tasks have been run
+      ansible.builtin.meta: end_role
+      when: keystone_mark_file.stat.exists
+
+- name: Create Keystone database and user
+  block:
+    - name: Create Keystone database
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ keystone_db_conf.mariadb_socket_path }}"
+        name: "{{ keystone_db_conf.db_name }}"
+        state: present
+
+    - name: Create Keystone db_user
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ keystone_db_conf.mariadb_socket_path }}"
+        name: "{{ keystone_db_conf.db_user_name }}"
+        password: "{{ keystone_db_conf.db_user_password }}"
+        state: present
+        hosts: "{{ item }}"
+        priv: "{{ keystone_db_conf.db_name }}.*:ALL"
+      loop:
+        - "localhost"
+        - "%"
+
+- name: Install and Configure Keystone
+  block:
+    - name: Install Keystone Packages
+      ansible.builtin.dnf:
+        name: "{{ keystone_packages }}"
+        state: present
+
+    - name: Configure Keystone from templates
+      ansible.builtin.template:
+        src: "{{ keystone_conf_template_src }}"
+        dest: "{{ keystone_conf_path }}"
+        mode: '0644'
+
+- name: Sync Keystone Database
+  block:
+    - name: Check if Keystone DB sync mark file exists
+      ansible.builtin.stat:
+        path: "{{ keystone_mark_files_path.db_synced_mark_path }}"
+      register: keystone_db_sync_mark
+
+    - name: Ensure Keystone database is synced
+      ansible.builtin.command:
+        cmd: keystone-manage db_sync
+      become: true
+      become_user: keystone
+      register: keystone_db_sync
+      changed_when: false
+      ignore_errors: false
+      when: not keystone_db_sync_mark.stat.exists
+
+    - name: Show db_sync output
+      ansible.builtin.debug:
+        msg: "{{ keystone_db_sync.stdout_lines | default([]) }}"
+      when: not keystone_db_sync_mark.stat.exists
+
+    - name: Mark Keystone database as synced
+      ansible.builtin.file:
+        path: "{{ keystone_mark_files_path.db_synced_mark_path }}"
+        state: touch
+        mode: '0755'
+      when: not keystone_db_sync_mark.stat.exists
+
+- name: Keystone key initialization
+  block:
+    # --- Fernet Key Initialization ---
+    - name: Check if Fernet key initialization mark exists
+      ansible.builtin.stat:
+        path: "{{ keystone_mark_files_path.fernet_initialized_mark_path }}"
+      register: keystone_fernet_mark
+
+    - name: Initialize Keystone fernet keys
+      ansible.builtin.command:
+        cmd: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+      become: true
+      become_user: keystone
+      changed_when: false
+      when: not keystone_fernet_mark.stat.exists
+
+    - name: Mark Fernet initialization done
+      ansible.builtin.file:
+        path: "{{ keystone_mark_files_path.fernet_initialized_mark_path }}"
+        state: touch
+        mode: '0755'
+      when: not keystone_fernet_mark.stat.exists
+
+    # --- Credential Key Initialization ---
+    - name: Check if Credential key initialization mark exists
+      ansible.builtin.stat:
+        path: "{{ keystone_mark_files_path.credential_initialized_mark_path }}"
+      register: keystone_credential_mark
+
+    - name: Initialize Keystone credential keys
+      ansible.builtin.command:
+        cmd: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+      become: true
+      become_user: keystone
+      changed_when: false
+      when: not keystone_credential_mark.stat.exists
+
+    - name: Mark Credential initialization done
+      ansible.builtin.file:
+        path: "{{ keystone_mark_files_path.credential_initialized_mark_path }}"
+        state: touch
+        mode: '0755'
+      when: not keystone_credential_mark.stat.exists
+
+- name: Keystone bootstrap initialization
+  block:
+    - name: Check if Keystone bootstrap mark file exists
+      ansible.builtin.stat:
+        path: "{{ keystone_mark_files_path.keystone_bootstrap_mark_path }}"
+      register: keystone_bootstrap_mark
+
+    - name: Bootstrap Keystone
+      ansible.builtin.shell: |
+        keystone-manage bootstrap \
+          --bootstrap-password 000000 \
+          --bootstrap-admin-url http://controller:5000/v3/ \
+          --bootstrap-internal-url http://controller:5000/v3/ \
+          --bootstrap-public-url http://controller:5000/v3/ \
+          --bootstrap-region-id RegionOne
+      become: true
+      become_user: keystone
+      changed_when: false
+      when: not keystone_bootstrap_mark.stat.exists
+
+    - name: Mark Keystone bootstrap done
+      ansible.builtin.file:
+        path: "{{ keystone_mark_files_path.keystone_bootstrap_mark_path }}"
+        state: touch
+        mode: '0755'
+      when: not keystone_bootstrap_mark.stat.exists
+
+- name: Configure Apache configuration from templates
+  block:
+    - name: Configure Apache from templates
+      ansible.builtin.template:
+        src: "{{ keystone_httpd_conf_template_src }}"
+        dest: "{{ keystone_httpd_conf_path }}"
+        mode: '0644'
+
+    - name: Make Softlink
+      ansible.builtin.file:
+        path: "{{ keystone_httpd_conf_path_softlink_src }}"
+        dest: "{{ keystone_httpd_conf_path_softlink_dest }}"
+        state: link
+
+    - name: Restart Apache
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+        enabled: true
+
+- name: Configure KeyStone Admin Env
+  block:
+    - name: Deploy Keystone Admin sh from templates
+      ansible.builtin.template:
+        src: "{{ keystone_admin_sh_template_src }}"
+        dest: "{{ keystone_admin_sh_path }}"
+        mode: '0755'
+
+    - name: Enable Keystone Admin Env
+      ansible.builtin.shell: |
+        source {{ keystone_admin_sh_path }}
+      changed_when: false
+
+- name: Create Default ,example project and domain
+  block:
+    - name: Create Service project in default domain
+      openstack.cloud.project:
+        name: "service"
+        description: "Service Project"
+        domain: "default"
+        state: present
+        enabled: true
+      register: keystone_service_project_output
+
+    - name: Show Service project output
+      ansible.builtin.debug:
+        msg: "{{ service_project_output.stdout_lines }}"
+
+- name: Create mark file to indicate Keystone tasks have been run
+  ansible.builtin.file:
+    path: "{{ keystone_mark_dir_path.success }}"
+    state: touch
+    mode: '0644'

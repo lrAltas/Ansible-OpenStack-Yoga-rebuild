@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/rabbitmq
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ rabbitmq_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if rabbitmq tasks have been run
+      ansible.builtin.stat:
+        name: "{{ rabbitmq_mark_file_path }}"
+      register: rabbitmq_mark_file
+
+    - name: Skip if rabbitmq tasks have been run
+      ansible.builtin.meta: end_role
+      when: rabbitmq_mark_file.stat.exists
+
+- name: Install RabbitMQ Packages and Add OpenStack User
+  block:
+    - name: Install RabbitMQ Packages
+      ansible.builtin.dnf:
+        name: "{{ rabbitmq_packages }}"
+        state: present
+
+    - name: Start and enable RabbitMQ
+      ansible.builtin.service:
+        name: rabbitmq-server
+        state: started
+        enabled: true
+
+    - name: Enable RabbitMQ Managenment Plugin
+      community.rabbitmq.rabbitmq_plugin:
+        name: rabbitmq_management
+        state: enabled
+
+    - name: Create OpenStack User and set necessary permissions
+      community.rabbitmq.rabbitmq_user:
+        name: openstack
+        password: "{{ rabbitmq_openstack_rabbitmq_user_password }}"
+        configure_priv: ".*"
+        read_priv: ".*"
+        write_priv: ".*"
+        tags: none
+        state: present
+
+- name: Create mark file to indicate rabbitmq tasks have been run
+  ansible.builtin.file:
+    path: "{{ rabbitmq_mark_file_path }}"
+    state: touch
+    mode: '0644'

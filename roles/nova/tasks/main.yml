@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/nova
+- name: Run controller tasks
+  ansible.builtin.import_tasks: nova_controller.yml
+  when: "'controller' in group_names"
+
+- name: Run compute tasks
+  ansible.builtin.import_tasks: nova_compute.yml
+  when: "'compute' in group_names"

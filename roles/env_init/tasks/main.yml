@@ -1,0 +1,142 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/env_init
+# This role is to initialize the environment for OpenStack Yoga rebuild
+# It checks if the initialization tasks have been run before by looking for a mark file
+# If the mark file exists, it skips the tasks to avoid re-initialization
+# 通过设置标记文件来检查初始化任务是否已经运行过
+# 如果标记文件存在，则跳过任务以避免重新初始化
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ env_init_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if env_init tasks have been run
+      ansible.builtin.stat:
+        name: "{{ env_init_mark_file_path }}"
+      register: env_init_mark_file
+
+    - name: Skip if init_env tasks have been run
+      ansible.builtin.meta: end_role
+      when: env_init_mark_file.stat.exists
+
+# 这块是配置主机上的hosts文件，添加主机名和IP地址的映射
+# This block configures the hosts file on the host, adding mappings of hostnames to IP
+- name: Configure add host_namppings to hosts file
+  ansible.builtin.blockinfile:
+    path: "{{ env_init_hosts_path }}"
+    block: |
+      {% for item in env_init_host_mappings %}
+      {{ item.ip }} {{ item.name }}
+      {% endfor %}
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+
+# 在示例环境中，我们需要需要关闭防火墙以避免影响服务间的通信
+# In the example environment, we need to disable the firewall to avoid affecting communication between services
+# This task stops and disables the firewall service on target hosts
+- name: Stop firewall in target hosts(ubuntu's firewall is ufw)
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false
+
+# 在关闭防火墙之后我们需要先安装一些基础的软件包，并且开启CRB库
+# After stopping the firewall, we need to install some basic software packages and enable the CRB repository
+- name: Install basic software packages and enable CRB repository
+  block:
+    - name: Import OpenStack GPG key First
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://www.centos.org/keys/RPM-GPG-KEY-CentOS-SIG-Cloud
+
+    - name: Install some basic software packages(include openstack-release package)
+      ansible.builtin.dnf:
+        name: "{{ env_init_packages }}"
+        state: present
+
+
+    - name: Upgrade python-openstacksdk package
+      ansible.builtin.pip:
+        name: openstacksdk==4.5.0
+
+    - name: Enable CRB repository
+      ansible.builtin.dnf:
+        enable_repo: CRB
+        update_cache: true
+
+    - name: Install OpenStack-Client package
+      ansible.builtin.dnf:
+        name: "{{ env_init_openstack_client_package }}"
+        state: present
+
+# 我们接下来要配置NTP服务，确保所有节点的时间同步
+# 在这块你可以用网上的NTP服务器哦，例如阿里云的NTP服务器
+# 条件允许的话你也可以搭建自己的NTP服务器
+# Next, we need to configure the NTP service to ensure time synchronization across all nodes
+# You can use online NTP servers, such as Alibaba Cloud's NTP server
+# If conditions permit, you can also set up your own NTP server
+- name: Configure NTP service
+  block:
+    - name: Ensure NTP service exists(RHEL/CentOS use chrony as NTP service)
+      ansible.builtin.dnf:
+        name: chrony
+        state: present
+
+    - name: Configure NTP servers
+      ansible.builtin.template:
+        src: "{{ env_init_ntp_template_src }}"
+        dest: "{{ env_init_ntp_conf_path }}"
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Start if chronyd is not started
+      ansible.builtin.service:
+        name: chronyd
+        state: started
+        enabled: true
+
+    - name: Restart NTP service(chronyd usually has been started and enabled after installation of system)
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted
+        enabled: true
+
+    - name: Set timedateconf to use NTP
+      ansible.builtin.command:
+        cmd: timedatectl set-ntp true
+      changed_when: false
+
+    - name: Check chronyd's ntp_server
+      ansible.builtin.command: |
+        chronyc sources -v | grep '^\^\*'
+      register: env_init_chrony_server
+      changed_when: false
+      ignore_errors: true
+
+# 接下来我们要禁用SElinux，因为SElinux在OpenStack中通常会与Nova服务有冲突
+# Next, we need to disable SELinux, as SELinux often conflicts with Nova services in OpenStack
+- name: Disable SELinux
+  block:
+    - name: Disable SELinux permenatly
+      ansible.posix.selinux:
+        state: disabled
+        policy: targeted
+
+    - name: Reboot to apply all changes
+      ansible.builtin.reboot:
+        msg: "Reboot to fully disable SELinux"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+      when: selinux_reboot_required | default(true)
+
+- name: Create mark file to indicate init_env tasks have been run
+  ansible.builtin.file:
+    path: "{{ env_init_mark_file_path }}"
+    state: touch
+    mode: '0644'

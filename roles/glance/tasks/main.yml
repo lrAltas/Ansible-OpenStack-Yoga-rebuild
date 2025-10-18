@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/glance
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ glance_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if glance tasks have been run
+      ansible.builtin.stat:
+        name: "{{ glance_mark_files_path.success }}"
+      register: glance_mark_file
+
+    - name: Skip if glance tasks have been run
+      ansible.builtin.meta: end_role
+      when: glance_mark_file.stat.exists
+
+- name: Create Glance database and user
+  block:
+    - name: Create Glance database
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ glance_db_conf.mariadb_socket_path }}"
+        name: "{{ glance_db_conf.db_name }}"
+        state: present
+
+    - name: Create Glance db_user
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ glance_db_conf.mariadb_socket_path }}"
+        name: "{{ glance_db_conf.db_user_name }}"
+        password: "{{ glance_db_conf.db_user_password }}"
+        state: present
+        priv: "{{ glance_db_conf.db_name }}.*:ALL"
+        hosts: "{{ item }}"
+      loop:
+        - "localhost"
+        - "%"
+
+- name: Create Glance Service User and Endpoints
+  block:
+    - name: Create Glance Service User in default domain
+      openstack.cloud.identity_user:
+        name: glance
+        domain: default
+        password: "{{ glance_openstack_service_password }}"
+        state: present
+
+    - name: Assign Admin Role to Glance in Service Project
+      openstack.cloud.role_assignment:
+        project: service
+        role: admin
+        user: glance
+        state: present
+
+    - name: Create Image Service(Glance)
+      openstack.cloud.catalog_service:
+        name: glance
+        description: OpenStack Image Service
+        service_type: image
+        state: present
+
+    - name: Create Image Service(Glance) Endpoints
+      openstack.cloud.endpoint:
+        service: glance
+        endpoint_interface: "{{ item.endpoint_interface }}"
+        url: "{{ item.url }}"
+        region: "{{ glance_region }}"
+        state: present
+      loop:
+        - { endpoint_interface: public, url: "http://controller:9292"}
+        - { endpoint_interface: internal, url: "http://controller:9292"}
+        - { endpoint_interface: admin, url: "http://controller:9292"}
+
+- name: Install Glance Packages and Configrue Glance
+  block:
+    - name: Install Glance Packages
+      ansible.builtin.dnf:
+        name: "{{ glance_packages }}"
+        state: present
+
+    - name: Deploy glance-api.conf from template
+      ansible.builtin.template:
+        src: "{{ glance_api_conf_template_src }}"
+        dest: "{{ glance_api_conf_path }}"
+        mode: '0644'
+
+- name: Glance database synchronization
+  block:
+    - name: Check if Glance database sync mark file exists
+      ansible.builtin.stat:
+        path: "{{ glance_mark_files_path.db_synced_mark_path }}"
+      register: glance_db_mark
+
+    - name: Ensure Glance database is synced
+      ansible.builtin.command:
+        cmd: glance-manage db_sync
+      become: true
+      become_user: glance
+      register: glance_db_sync
+      ignore_errors: false
+      changed_when: false
+      when: not glance_db_mark.stat.exists
+
+    - name: Mark Glance database as synced
+      ansible.builtin.file:
+        path: "{{ glance_mark_files_path.db_synced_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: not glance_db_mark.stat.exists
+
+    - name: Show db_sync output
+      ansible.builtin.debug:
+        msg: "{{ glance_db_sync.stdout_lines | default([]) }}"
+      when: glance_db_sync is defined
+
+    - name: Ensure glance-api service started
+      ansible.builtin.service:
+        name: openstack-glance-api
+        state: started
+        enabled: true
+
+    - name: Restart glance-api service
+      ansible.builtin.service:
+        name: openstack-glance-api
+        state: restarted
+        enabled: true
+
+- name: Create mark file to indicate glance tasks have been run
+  ansible.builtin.file:
+    path: "{{ glance_mark_files_path.success }}"
+    state: touch
+    mode: '0644'

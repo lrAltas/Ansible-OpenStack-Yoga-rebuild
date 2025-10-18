@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/rabbitmq
+rabbitmq_mark_dir_path: /root/.marks
+rabbitmq_mark_file_path: "{{ rabbitmq_mark_dir_path }}/rabbitmq_success.mark"
+
+rabbitmq_packages:
+  - rabbitmq-server
+
+# 你可以根据你的实际情况来更改密码，如果仅为展示环境，那么密码可以设置为000000不用管他
+# The password can be changed according to your needs. If it is only for demonstration purposes, the password can be set to 000000 without worrying about it
+rabbitmq_openstack_rabbitmq_user_password: "000000"

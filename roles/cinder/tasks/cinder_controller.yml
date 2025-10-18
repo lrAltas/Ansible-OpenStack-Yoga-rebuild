@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/cinder/cinder_controller.yml
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ cinder_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if cinder tasks have been run
+      ansible.builtin.stat:
+        name: "{{ cinder_mark_files_path.controller_node_success }}"
+      register: cinder_mark_file
+
+    - name: Skip if cinder tasks have been run
+      ansible.builtin.meta: end_role
+      when: cinder_mark_file.stat.exists
+
+- name: Create Cinder Database and User
+  block:
+    - name: Create Cinder Database
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ cinder_db_conf.mariadb_socket_path }}"
+        name: "{{ cinder_db_conf.db_name }}"
+        state: present
+
+    - name: Create Cinder Database User
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ cinder_db_conf.mariadb_socket_path }}"
+        name: "{{ cinder_db_conf.db_user_name }}"
+        password: "{{ cinder_db_conf.db_user_password }}"
+        state: present
+        host: "{{ ietm }}"
+      loop:
+        - "localhost"
+        - "%"
+
+- name: Create Cinder Service User and endpoints
+  block:
+    - name: Create Cinder Service User in Default domain
+      openstack.cloud.identity_user:
+        name: cinder
+        domain: default
+        password: "{{ cinder_openstack_service_password.cinder }}"
+        state: present
+
+    - name: Assign Cinder Service User to admin role
+      openstack.cloud.role_assignment:
+        user: cinder
+        role: admin
+        project: service
+        state: present
+
+    - name: Create Cinder Service
+      openstack.cloud.identity_service:
+        name: cinderv3
+        description: OpenStack Block Storage Service
+        type: volumev3
+        state: present
+
+    - name: Create Cinder Service endpoints
+      openstack.cloud.endpoint:
+        service: cinderv3
+        endpoint_interface: "{{ item.endpoint_interface }}"
+        url: "{{ item.url }}"
+        region_name: "{{ cinder_region }}"
+        state: present
+      loop:
+        - { endpoint_interface: public, url: "http://controller:8776/v3/%(project_id)s" }
+        - { endpoint_interface: internal, url: "http://controller:8776/v3/%(project_id)s" }
+        - { endpoint_interface: admin, url: "http://controller:8776/v3/%(project_id)s" }
+
+- name: Install and Configure Cinder
+  block:
+    - name: Install Cinder Packages
+      ansible.builtin.dnf:
+        name: "{{ cinder_packages }}"
+        state: present
+
+    - name: Deploy Cinder Configuretion from Templates
+      ansible.builtin.template:
+        src: "{{ cinder_conf_templates_src_path }}"
+        dest: "{{ cinder_conf_path }}"
+        mode: "0644"
+
+- name: Sync Cinder Database
+  block:
+    - name: Ensure Cinder database is synced
+      ansible.builtin.command: cinder-manage db sync
+      become: true
+      become_user: cinder
+      args:
+        creates: "{{ cinder_mark_files_path.cinder_db_synced_mark_path }}"
+      register: cinder_db_sync
+      ignore_errors: false
+
+    - name: Mark Cinder database as synced
+      ansible.builtin.file:
+        path: "{{ cinder_mark_files_path.cinder_db_synced_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: cinder_db_sync.rc == 0
+
+    - name: Show db_sync output
+      ansible.builtin.debug:
+        msg: "{{ cinder_db_sync.stdout_lines | default([]) }}"
+
+- name: Configure Nova to Use Cinder
+  community.general.ini_file:
+    path: "{{ cinder_conf_path.nova_conf }}"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: '0644'
+  loop:
+    - { section: cinder, option: os_region_name, value: RegionOne }
+
+- name: Restart Cinder releated services
+  block:
+    - name: Restart openstack_nova_api
+      ansible.builtin.service:
+        name: openstack-nova-api
+        state: restarted
+        enabled: true
+
+    - name: Start and Enable Cinder Services
+      ansible.builtin.service:
+        state: started
+        name: "{{ item }}"
+        enabled: true
+      loop:
+        - openstack-cinder-api.service
+        - openstack-cinder-scheduler.service
+        - openstack-cinder-volume.service
+
+    - name: Restart httpd Service
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+        enabled: true
+
+- name: Create mark file to indicate the tasks has been run
+  ansible.builtin.file:
+    path: "{{ cinder_mark_files_path.controller_node_success }}"
+    state: touch
+    mode: '0644'

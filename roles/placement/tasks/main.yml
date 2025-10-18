@@ -1,0 +1,187 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/placement
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ placement_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if placement tasks have been run
+      ansible.builtin.stat:
+        name: "{{ placement_mark_files_path.success }}"
+      register: placement_success_mark_file
+
+    - name: Skip if placement tasks have been run
+      ansible.builtin.meta: end_role
+      when: placement_success_mark_file.stat.exists
+
+- name: Create Placement database and user
+  block:
+    - name: Create Placement database
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ placement_mariadb_socket_path }}"
+        name: "{{ placement_db_conf.db_name }}"
+        state: present
+
+    - name: Create Placement user
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ placement_db_conf.mariadb_socket_path }}"
+        name: "{{ placement_db_conf.db_user_name }}"
+        password: "{{ placement_db_conf.db_user_password }}"
+        priv: "{{ placement_db_conf.db_name }}.*:ALL"
+        state: present
+        hosts: "{{ item }}"
+      loop:
+        - "%"
+        - "localhost"
+
+- name: Create Placement's service user,role,endpoints,and project
+  block:
+    - name: Create Placement's service user indefault domain
+      openstack.cloud.identity_user:
+        name: placement
+        domain: Default
+        password: "{{ placement_openstack_service_password }}"
+        state: present
+
+    - name: Assign placement role to placement service user
+      openstack.cloud.role_assignment:
+        project: service
+        role: admin
+        user: placement
+        state: present
+
+    - name: Create Placement's service entity
+      openstack.cloud.catalog_service:
+        name: placement
+        description: "Placement API"
+        service_type: placement
+        state: present
+
+    - name: Create Placement's service endpoint
+      openstack.cloud.endpoint:
+        service: placement
+        endpoint_interface: "{{ item.interface }}"
+        url: "{{ item.url }}"
+        region: "{{ placement_region }}"
+        state: present
+      loop:
+        - { interface: public, url: "ttp://controller:8778" }
+        - { interfdace: admin, url: "ttp://controller:8778" }
+        - { interface: internal, url: "ttp://controller:8778" }
+
+- name: Install Placement Packages and Deploy Placement Configuration
+  block:
+    - name: Install Placement Packages
+      ansible.builtin.dnf:
+        name: "{{ placement_packages }}"
+        state: present
+
+    - name: Deploy Placement Configuration Template
+      ansible.builtin.template:
+        src: "{{ placement_conf_template_src }}"
+        dest: "{{ placement_conf_path }}"
+        mode: '0644'
+
+- name: Sync Placement Database
+  block:
+    - name: Check if placement db sync mark file exists
+      ansible.builtin.stat:
+        path: "{{ placement_mark_files_path.db_sync }}"
+      register: placement_db_sync_mark
+
+    - name: Run placement-manage db sync
+      ansible.builtin.command:
+        cmd: placement-manage db sync
+      become: true
+      become_user: placement
+      register: placement_db_sync
+      changed_when: false
+      when: not placement_db_sync_mark.stat.exists
+
+    - name: Create placement db sync mark file
+      ansible.builtin.file:
+        path: "{{ placement_mark_files_path.db_sync }}"
+        state: touch
+        mode: '0644'
+      when: not placement_db_sync_mark.stat.exists
+
+    - name: Show db sync output and result
+      ansible.builtin.debug:
+        msg: placement_db_sync.stdout_lines
+
+    - name: Mark Placement database sync
+      ansible.builtin.file:
+        path: "{{ placement_mark_files_path.db_sync }}"
+        state: touch
+        mode: '0644'
+
+    - name: Restart Httpd
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+        enabled: true
+
+- name: Transform Placement policy.json Exists
+  block:
+    - name: Check if Placement policy.json exists
+      ansible.builtin.stat:
+        path: "{{ placement_policy_json_path }}"
+      register: placement_policy_json_exists
+
+    - name: Convert Placement policy.json to YAML if exists
+      ansible.builtin.command:
+        cmd: >
+          oslopolicy-convert-json-to-yaml
+          --namespace placement
+          --policy-file /etc/placement/policy.json
+          --output-file /etc/placement/policy.yaml
+      when: placement_policy_json_exists.stat.exists
+      args:
+        creates: "{{ placement_policy_yaml_path }}"
+
+    - name: Remove old Placement policy.json
+      ansible.builtin.file:
+        path: "{{ placement_policy_json_path }}"
+        state: absent
+      when: placement_policy_json_exists.stat.exists
+
+- name: Check Placement status and print output
+  block:
+    - name: Check Placement status
+      ansible.builtin.command:
+        cmd: placement-status upgrade Check
+      changed_when: false
+      register: placement_status
+
+    - name: Show Placement status output
+      ansible.builtin.debug:
+        msg: placement_status.stdout_lines
+
+# 这个task的添加是为了解决在在中这个问题提示的
+# The placement service for controller:RegionOne exists but does not have any supported versions.
+# This task is added to solve the problem of the placement service for controller:RegionOne existing but not having any supported versions.
+- name: Problems Solve
+  block:
+    - name: Deploy Httpd configuration file(00-placement-api.conf)
+      ansible.builtin.copy:
+        src: "{{ placement_httpd_conf_src }}"
+        dest: "{{ placement_httpd_conf_path }}"
+        mode: '0644'
+
+    - name: Restart the httpd service
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+        enabled: true
+
+- name: Create mark file to indicate placement tasks have been run
+  ansible.builtin.file:
+    path: "{{ placement_mark_files_path.success }}"
+    state: touch
+    mode: '0644'

@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/cinder/cinder_storage_node.yml
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ cinder_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if cinder tasks have been run
+      ansible.builtin.stat:
+        name: "{{ cinder_mark_files_path.storage_node_success }}"
+      register: cinder_mark_file
+
+    - name: Skip if cinder tasks have been run
+      ansible.builtin.meta: end_role
+      when: cinder_mark_file.stat.exists
+
+- name: Setup LVM backend for cinder
+  block:
+    - name: 获取所有物理磁盘
+      ansible.builtin.set_fact:
+        cinder_physical_disks: "{{ ansible_devices.keys() | select('match','^(sd|nvme).*') | list }}"
+
+    - name: 获取根挂载设备
+      ansible.builtin.set_fact:
+        cinder_root_device: "{{ (ansible_mounts | selectattr('mount','equalto','/') | map(attribute='device') | list)[0] }}"
+
+    - name: 获取系统盘候选
+      ansible.builtin.command: "pvs --noheadings -o pv_name -S vg_name=$(lvs --noheadings -o vg_name {{ root_device }} 2>/dev/null | xargs)"
+      register: cinder_root_pvs_out
+      failed_when: false
+      changed_when: false
+
+    - name: 设置系统盘候选
+      ansible.builtin.set_fact:
+        cinder_root_disk: "{{ (cinder_root_pvs_out.stdout_lines | map('basename') | list)[0] | default('') }}"
+
+    - name: 获取有分区的磁盘
+      ansible.builtin.set_fact:
+        cinder_partitioned_disks: "{{ ansible_devices
+                               | dict2items
+                               | selectattr('value.partitions', 'defined')
+                               | selectattr('value.partitions', 'ne', {})
+                               | map(attribute='key')
+                               | list }}"
+
+
+    - name: 获取数据盘
+      ansible.builtin.set_fact:
+        cinder_data_disks: "{{ physical_disks | difference([root_disk]) }}"
+
+    - name: 获取可用裸盘（Cinder可用）
+      ansible.builtin.set_fact:
+        cinder_disks: "{{ data_disks | difference(partitioned_disks) }}"
+
+    - name: 为 Cinder 创建物理卷
+      ansible.builtin.command: "pvcreate /dev/{{ item }}"
+      loop: "{{ cinder_disks }}"
+      register: cinder_pvcreate_results
+      failed_when: false
+      changed_when: false
+
+    - name: 为 Cinder 创建卷组
+      ansible.builtin.command: "vgcreate cinder-volumes /dev/{{ cinder_disks | join(' /dev/') }}"
+      when: cinder_disks | length > 0
+      register: cinder_vgcreate_result
+      failed_when: false
+      changed_when: false
+
+
+    - name: 显示磁盘信息
+      ansible.builtin.debug:
+        msg:
+          - "所有物理磁盘: {{ physical_disks }}"
+          - "系统盘: {{ root_disk }}"
+          - "数据盘: {{ data_disks }}"
+          - "可用裸盘(Cinder可用): {{ cinder_disks }}"
+          - "pvcreate 执行结果: {{ cinder_pvcreate_results.results | map(attribute='stdout') | list }}"
+          - "vgcreate 执行结果: {{ cinder_vgcreate_result.stdout if vgcreate_result is defined else '未执行' }}"
+
+
+    - name: 设置 LVM filter，允许 Cinder 盘并拒绝其他磁盘
+      ansible.builtin.replace:
+        path: /etc/lvm/lvm.conf
+        regexp: '^\s*filter\s*=.*$'
+        replace: '    filter = [ {% for d in cinder_disks %}"a/{{ d }}/",{% endfor %} "r/.*/"]'
+      when: cinder_disks | length > 0
+
+    - name: Show the change result | 显示修改后的 LVM filter
+      ansible.builtin.command: "grep 'filter' /etc/lvm/lvm.conf"
+      register: cinder_lvm_filter_result
+      changed_when: false
+
+    - name: 输出 LVM filter
+      ansible.builtin.debug:
+        msg: "{{ lvm_filter_result.stdout }}"
+
+- name: Install Cinder Packages and Configure Cinder Service
+  block:
+    - name: Install Cinder Packages
+      ansible.builtin.dnf:
+        name: "{{ cinder_packages }}"
+        state: present
+
+    - name: Deploy Cinder Configuretion from Templates
+      ansible.builtin.template:
+        src: "{{ cinder_conf_templates_src_path }}"
+        dest: "{{ cinder_conf_path }}"
+        mode: "0644"
+
+- name: Restart Related Services
+  block:
+    - name: Restart openstack-cinder-volume
+      ansible.builtin.service:
+        name: openstack-cinder-volume
+        state: restarted
+        enabled: true
+
+    - name: Restart target.service
+      ansible.builtin.service:
+        name: target
+        state: restarted
+        enabled: true
+
+- name: Create mark file to indicate the tasks has been run
+  ansible.builtin.file:
+    path: "{{ cinder_mark_files_path.storage_node_success }}"
+    state: touch
+    mode: '0644'

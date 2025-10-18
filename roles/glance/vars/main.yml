@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/glance
+glance_mark_dir_path: /root/.marks
+glance_db_conf:
+  mariadb_socket_path: /var/lib/mysql/mysql.sock
+  db_name: glance
+  db_user_name: glance
+  db_user_password: "000000"
+
+glance_openstack_service_password: "000000"
+glance_region: RegionOne
+glance_packages:
+  - openstack-glance
+
+glance_api_conf_template_src: templates/glance_api.conf.j2
+glance_api_conf_path: /etc/glance/glance-api.conf
+
+glance_mark_files_path:
+  success: "{{ glance_mark_dir_path }}/glance_success.mark"
+  db_synced_mark_path: "{{ glance_mark_dir_path }}/glance_db_synced.mark"

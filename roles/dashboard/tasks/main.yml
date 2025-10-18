@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/dashboard
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ dashboard_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if dashboard tasks have been run
+      ansible.builtin.stat:
+        name: "{{ dashboard_mark_files_path.dashboard_conf_success }}"
+      register: dashboard_mark_file
+
+    - name: Skip if dashboard tasks have been run
+      ansible.builtin.meta: end_role
+      when: dashboard_mark_file.stat.exists
+
+- name: Install and Configure dashboard
+  block:
+    - name: Install Dashboard Packages
+      ansible.builtin.dnf:
+        name: "{{ dashboard_packages }}"
+        state: present
+
+    - name: OpenStack Horizon Static Resources
+      block:
+        - name: Deploy Configuration Files
+          ansible.builtin.template:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            mode: "0644"
+          loop:
+            - { src: "{{ dashboard_conf_template_src_path.local_settings }}", dest: "{{ dashboard_conf_path.local_settings }}" }
+            - { src: "{{ dashboard_conf_template_src_path.defaults_py }}", dest: "{{ dashboard_conf_path.defaults_py }}" }
+            - { src: "{{ dashboard_conf_template_src_path.openstack_dashboard_conf }}", dest: "{{ dashboard_conf_path.openstack_dashboard_conf }}" }
+            - { src: "{{ dashboard_conf_template_src_path.settings_py }}", dest: "{{ dashboard_conf_path.settings_py }}" }
+
+        - name: Collection Horizon Static Resources
+          ansible.builtin.command:
+            cmd: python3 manage.py collectstatic --noinput --clear
+          args:
+            chdir: /usr/share/openstack-dashboard
+          become: true
+          become_user: apache
+          changed_when: false
+
+        - name: Compress Horizon Static Files
+          ansible.builtin.command:
+            cmd: python3 manage.py compress --force
+          args:
+            chdir: /usr/share/openstack-dashboard
+          become: true
+          become_user: apache
+          changed_when: false
+
+        - name: Restart Service releated to Horizon
+          ansible.builtin.service:
+            name: "{{ item }}"
+            state: restarted
+            enabled: true
+          loop:
+            - httpd
+            - memcached
+
+- name: Create mark file to indicate that the tasks have been run
+  ansible.builtin.file:
+    path: "{{ dashboard_mark_files_path.dashboard_conf_success }}"
+    state: touch
+    mode: '0644'

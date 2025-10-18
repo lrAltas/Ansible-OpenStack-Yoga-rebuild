@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/neutron/tasks/neutron_nic_configuration.yml
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ neutron_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if neutron tasks have been run
+      ansible.builtin.stat:
+        name: "{{ neutron_mark_files_path.nic_conf_success }}"
+      register: neutron_mark_file
+
+    - name: Skip if neutron tasks have been run
+      ansible.builtin.meta: end_role
+      when: neutron_mark_file.stat.exists
+
+- name: Configure nic and add OVS bridge
+  block:
+    - name: Dsiable IPV4 on {{ neutron_ovs_conf.nic_name }}
+      community.general.nmcli:
+        conn_name: "{{ neutron_ovs_conf.nic_name }}"
+        type: ethernet
+        method4: disabled
+        state: present
+
+    - name: Ingore IPV6 on {{ neutron_ovs_conf.nic_name }}
+      community.general.nmcli:
+        conn_name: "{{ neutron_ovs_conf.nic_name }}"
+        type: ethernet
+        method6: ignore
+        state: present
+
+- name: Add OVS bridge
+  block:
+    - name: Ensure OpenvSwitch service is running
+      ansible.builtin.service:
+        name: openvswitch
+        state: started
+
+    - name: Create OVS bridge
+      openvswitch.openvswitch.openvswitch_bridge:
+        bridge: "{{ neutron_ovs_conf.bridge_port_name }}"
+        state: present
+        fail_mode: standalone
+
+    - name: Add nic to OVS bridge
+      openvswitch.openvswitch.openvswitch_port:
+        bridge: "{{ neutron_ovs_conf.bridge_port_name }}"
+        port: "{{ neutron_ovs_conf.nic_name }}"
+        state: present

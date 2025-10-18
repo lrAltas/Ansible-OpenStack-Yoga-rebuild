@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/neutron/tasks/neutron_controller.yml
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ neutron_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if neutron tasks have been run
+      ansible.builtin.stat:
+        name: "{{ neutron_mark_files_path.controller_conf_success }}"
+      register: neutron_mark_file
+
+    - name: Skip if neutron tasks have been run
+      ansible.builtin.meta: end_role
+      when: neutron_mark_file.stat.exists
+
+- name: Create Neutron Database and Database User
+  block:
+    - name: Create Neutron Database
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ neutron_db_conf.mariadb_socket_path }}"
+        name: "{{ neutron_db_conf.db_name }}"
+        state: present
+
+    - name: Create Neutron Database User
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ neutron_db_conf.mariadb_socket_path }}"
+        name: "{{ neutron_db_conf.db_user_name }}"
+        password: "{{ neutron_db_conf.db_user_password }}"
+        state: present
+        priv: "{{ neutron_db_conf.db_name }}.*:ALL"
+        host: "{{ item }}"
+      loop:
+        - "%"
+        - "localhost"
+
+- name: Create Neutron Service User and Endpoints
+  block:
+    - name: Create Neutron Service User in default domain
+      openstack.cloud.identity_user:
+        name: neutron
+        domain: default
+        password: "{{ neutron_openstack_service_password.neutron }}"
+        state: present
+
+    - name: Assign Admin Role to Neutron in Service Project
+      openstack.cloud.role_assignment:
+        project: service
+        role: admin
+        user: neutron
+        state: present
+
+    - name: Create Network Service(Neutron)
+      openstack.cloud.catalog_service:
+        name: neutron
+        description: OpenStack Network Service
+        service_type: network
+        state: present
+
+    - name: Create Neutron Endpoints
+      openstack.cloud.endpoint:
+        service: neutron
+        endpoint_interface: "{{ item.endpoint_interface }}"
+        url: "{{ item.url }}"
+        region: "{{ neutron_region }}"
+        state: present
+      loop:
+        - { endpoint_interface: public, url: "http://controller:9696"}
+        - { endpoint_interface: internal, url: "http://controller:9696"}
+        - { endpoint_interface: admin, url: "http://controller:9696"}
+
+- name: Configure Sysctl Parameters for network
+  block:
+    - name: Ensure br_netfilter module is loaded
+      community.general.modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Configure Sysctl Parameters
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_set: true
+      loop:
+        - { name: net.ipv4.conf.all.rp_filter, value: 0 }
+        - { name: net.ipv4.conf.default.rp_filter, value: 0 }
+        - { name: net.bridge.bridge-nf-call-iptables, value: 1 }
+        - { name: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+
+    - name: Apply sysctl settings
+      ansible.builtin.command:
+        cmd: sysctl -p
+      changed_when: false
+
+- name: Install Neutron Packages And Deploy Neutron Configuration
+  block:
+    - name: Install Neutron Packages
+      ansible.builtin.dnf:
+        name: "{{ neutron_controller_packages }}"
+        state: present
+
+# 没有特殊情况不要东配置文件的路径，个个嘎嘎改来改去，很折磨人的
+# Unless there are special requirements, these configuration file locations should not be changed
+    - name: Deploy Neutron Configuration Template
+      ansible.builtin.template:
+        src: "{{ neutron_controller_conf_template_src }}"
+        dest: "{{ neutron_controller_conf_path }}"
+        mode: '0644'
+      loop:
+        - { src: "{{ neutron_controller_conf_template_src.neutron_conf }}", dest: "{{ neutron_controller_conf_path.neutron_conf }}" }
+        - { src: "{{ neutron_controller_conf_template_src.ml2_conf }}", dest: "{{ neutron_controller_conf_path.ml2_conf }}" }
+        - { src: "{{ neutron_controller_conf_template_src.openvswitch_conf }}", dest: "{{ neutron_controller_conf_path.openvswitch_conf }}" }
+        - { src: "{{ neutron_controller_conf_template_src.dhcp_conf }}", dest: "{{ neutron_controller_conf_path.dhcp_conf }}" }
+        - { src: "{{ neutron_controller_conf_template_src.metadata_conf }}", dest: "{{ neutron_controller_conf_path.metadata_conf }}" }
+        - { src: "{{ neutron_controller_conf_template_src.l3_conf }}", dest: "{{ neutron_controller_conf_path.l3_conf }}" }
+
+# 实际手动部署的时候发现这个文件，也就是plugin.ini文件，其实在Yoga版本上没有
+# 但是实际内容其实和ml2_conf.ini文件一样
+# 所以这里直接用ml2_conf.ini文件来代替，月用链接代替
+# The file plugin.ini is actually not in the Yoga version, but the actual content is actually the same as ml2_conf.ini
+# So here ml2_conf.ini is used to replace plugin.ini
+    - name: Ensure Neutron Plugin.ini Symlink Exists(ml2_conf.ini)
+      ansible.builtin.file:
+        path: "{{ neutron_controller_conf_path.ml2_conf }}"
+        dest: "{{ neutron_controller_conf_path.plugin_ini }}"
+        state: link
+        mode: '0644'
+        force: true
+
+    - name: Configure Nova to use Neutron
+      community.general.ini_file:
+        path: "{{ neutron_controller_conf_path.nova_conf }}"
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        mode: "0644"
+      loop:
+        - { section: DEFAULT, option: linuxnet_interface_driver, value: nova.network.linux_net.LinuxOVSlnterfaceDriver }
+        - { section: neutron, option: auth_url, value: "http://controller:5000" }
+        - { section: neutron, option: auth_type, value: password }
+        - { section: neutron, option: project_domain_name, value: default }
+        - { section: neutron, option: user_domain_name, value: default }
+        - { section: neutron, option: region_name, value: RegionOne }
+        - { section: neutron, option: project_name, value: service }
+        - { section: neutron, option: username, value: neutron }
+        - { section: neutron, option: password, value: "{{ neutron_openstack_service_password.neutron }}" }
+        - { section: neutron, option: service_metadata_proxy, value: true }
+        - { section: neutron, option: metadata_proxy_shared_secret, value: ws }
+        - { section: neutron, option: interface, value: public}
+
+- name: Sync Neutron Database
+  block:
+    - name: Ensure Neutron database is synced
+      ansible.builtin.command: >
+        neutron-db-manage --config-file /etc/neutron/neutron.conf
+                          --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+                          upgrade head
+      become: true
+      become_user: neutron
+      args:
+        creates: "{{ neutron_mark_files_path.neutron_db_synced_mark_path }}"
+      register: neutron_db_sync
+      ignore_errors: false
+
+    - name: Mark Neutron database as synced
+      ansible.builtin.file:
+        path: "{{ neutron_mark_files_path.neutron_db_synced_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: neutron_db_sync.rc == 0
+
+    - name: Show db_sync output
+      ansible.builtin.debug:
+        msg: "{{ neutron_db_sync.stdout_lines | default([]) }}"
+
+    - name: Restart nova-api service
+      ansible.builtin.service:
+        name: openstack-nova-api
+        state: restarted
+        enabled: true
+
+- name: Restart Neutron Related Services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  loop:
+    - neutron-server
+    - neutron-openvswitch-agent
+    - neutron-dhcp-agent
+    - neutron-metadata-agent
+    - neutron-l3-agent

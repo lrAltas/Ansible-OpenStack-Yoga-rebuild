@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/cinder
+cinder_mark_dir_path: /root/.marks
+cinder_mark_files_path:
+  controller_conf_success: "{{ cinder_mark_dir_path }}/controller_node_success"
+  compute_conf_success: "{{ cinder_mark_dir_path }}/storage_node_success"
+  cinder_db_synced_mark_path: "{{ cinder_mark_dir_path }}/cinder_db_synced"
+
+
+cinder_db_conf:
+  db_name: cinder
+  db_user_name: cinder
+  db_user_password: "000000"
+  mariadb_socket_path: /var/lib/mysql/mysql.sock
+
+
+cinder_region: RegionOne
+
+cinder_openstack_service_password:
+  cinder: "000000"
+
+cinder_openstack_rabbitmq_user_password: "000000"
+
+cinder_packages:
+  - openstack-cinder
+  - targetcli
+
+cinder_conf_templates_src_path:
+  cinder_conf: templates/cinder.conf.j2
+  cinder_storage_conf: templates/cinder_node.conf.j2
+
+cinder_conf_path:
+  nova_conf: /etc/nova/nova.conf
+  cinder_conf: /etc/cinder/cinder.conf

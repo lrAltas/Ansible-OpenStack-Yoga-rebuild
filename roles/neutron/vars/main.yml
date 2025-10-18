@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/neutron
+neutron_mark_dir_path: /root/.marks
+neutron_mark_files_path:
+  controller_conf_success: "{{ neutron_mark_dir_path }}/neutron_controller_conf_success"
+  compute_conf_success: "{{ neutron_mark_dir_path }}/neutron_compute_conf_success"
+  neutron_db_synced_mark_path: "{{ neutron_mark_dir_path }}/neutron_db_synced_mark_path"
+  nic_conf_success: "{{ neutron_mark_dir_path }}/neutron_nic_conf_success"
+
+
+neutron_db_conf:
+  db_name: neutron
+  db_user_name: neutron
+  db_user_password: "000000"
+  mariadb_socket_path: /var/lib/mysql/mysql.sock
+
+neutron_openstack_rabbitmq_user_password: "000000"
+
+neutron_openstack_service_password:
+  neutron: "000000"
+  nova: "000000"
+
+neutron_region: RegionOne
+
+neutron_controller_packages:
+  - openstack-neutron
+  - openstack-neutron-ml2
+  - openstack-neutron-openvswitch
+  - ebtables
+
+neutron_controller_conf_template_src:
+  neutron_conf: templates/neutron.conf.j2
+  ml2_conf: templates/ml2_conf.ini.j2
+  openvswitch_conf: templates/openvswitch_agent.ini.j2
+  dhcp_conf: templates/dhcp_agent.ini.j2
+  metadata_conf: templates/metadata_agent.ini.j2
+  l3_conf: templates/l3_agent.ini.j2
+
+neutron_compute_conf_template_src:
+  neutron_conf: templates/compute_neutron.conf.j2
+  openvswitch_conf: templates/compute_openvswitch_agent.ini.j2
+
+neutron_compute_conf_path:
+  nova_conf: /etc/nova/nova.conf
+  neutron_conf: /etc/neutron/neutron.conf
+  openvswitch_conf: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+
+
+neutron_controller_conf_path:
+  neutron_conf: /etc/neutron/neutron.conf
+  nova_conf: /etc/nova/nova.conf
+  ml2_conf: /etc/neutron/plugins/ml2/ml2_conf.ini
+  openvswitch_conf: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+  dhcp_conf: /etc/neutron/dhcp_agent.ini
+  metadata_conf: /etc/neutron/metadata_agent.ini
+  l3_conf: /etc/neutron/l3_agent.ini
+
+neutron_compute_packages:
+  - openstack-neutron-openvswitch
+
+neutron_metadata_host: "{{ hostvars[groups['controller'][0]].ansible_host }}"
+
+# 这个地方需要根据你的实际情况来更改
+# You need to change the vlaues to your actual situation
+neutron_ovs_conf:
+  nic_name: enp0s8
+  bridge_port_name: br-ex

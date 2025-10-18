@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/placement
+placement_mark_dir_path: /root/.marks
+placement_mark_files_path:
+  success: "{{ placement_mark_dir_path }}/placement_success.mark"
+  db_sync: "{{ placement_mark_dir_path }}/placement_db_sync.mark"
+
+# 数据库这块，你要是没有特殊要求，那么默认的配置就可以
+# If you do not have any special requirements, the default configuration can be used
+placement_db_conf:
+  mariadb_socket_path: /var/lib/mysql/mysql.sock
+  db_name: placement
+  db_user_name: placement
+  db_user_password: "000000"
+
+# 服务密码这块，你要是没有特殊要求，那么默认的配置就可以
+# If you do not have any special requirements, the default configuration can be used
+placement_openstack_service_password: "000000"
+placement_region: RegionOne
+
+placement_packages:
+  - openstack-placement-api
+
+
+# 这些配置文件路径非有特殊要求，否则不要动
+# Unless there are special requirements, these configuration file locations should not be changed
+placement_conf_path: /etc/placement/placement.conf
+placement_conf_template_src: templates/placement.conf.j2
+
+placement_policy_json_path: /etc/placement/policy.json
+placement_policy_yaml_path: /etc/placement/policy.yaml
+
+placement_httpd_conf_src: files/00-placement-api.conf
+placement_httpd_conf_path: /etc/httpd/conf.d/00-placement-api.conf

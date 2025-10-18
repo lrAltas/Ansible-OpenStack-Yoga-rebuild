@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/memcache
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ memcache_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if memcache tasks have been run
+      ansible.builtin.stat:
+        name: "{{ memcache_mark_file_path }}"
+      register: memcache_mark_file
+
+    - name: Skip if db_install tasks have been run
+      ansible.builtin.meta: end_role
+      when: memcache_mark_file.stat.exists
+
+- name: Install memcache and deploy memcache configuration
+  block:
+    - name: Install Memcache Packages
+      ansible.builtin.dnf:
+        name: "{{ memcache_packages }}"
+        state: present
+
+    - name: Deploy memcache configuration template
+      ansible.builtin.template:
+        src: "{{ memcache_conf_template_src }}"
+        dest: "{{ memcache_conf_path }}"
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Start memcache and enable memcache
+      ansible.builtin.service:
+        name: memcached
+        state: started
+        enabled: true
+
+- name: Create mark file to indicate memcache tasks have been run
+  ansible.builtin.file:
+    path: "{{ memcache_mark_file_path }}"
+    state: touch
+    mode: '0644'

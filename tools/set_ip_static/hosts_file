@@ -1,0 +1,15 @@
+[controller]
+enp1s0 = 192.168.122.100
+gateway = 192.168.122.1
+netmask = 24
+dns = 8.8.8.8
+[compute01]
+enp1s0 = 192.168.122.101
+gateway = 192.168.122.1
+netmask = 24
+dns = 8.8.8.8
+[compute02]
+enp1s0 = 192.168.122.102
+gateway = 192.168.122.1
+netmask = 24
+dns = 8.8.8.8

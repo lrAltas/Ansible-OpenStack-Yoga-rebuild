@@ -1,0 +1,258 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/nova/tasks/nova_controller.yml
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ nova_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if placement tasks have been run
+      ansible.builtin.stat:
+        name: "{{ nova_mark_files_path.controller_success }}"
+      register: nova_success_mark_file
+
+    - name: Skip if nova tasks have been run
+      ansible.builtin.meta: end_role
+      when: nova_success_mark_file.stat.exists
+
+- name: Create Nova Database , User and grant privileges
+  block:
+    - name: Create nova_api_db Database
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ nova_db_conf.mariadb_socket_path }}"
+        name: "{{ nova_db_conf.nova_api_db_name }}"
+        state: present
+
+    - name: Create nova_db
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ nova_db_conf.mariadb_socket_path }}"
+        name: "{{ nova_db_conf.nova_db_name }}"
+        state: present
+
+    - name: Create nova_cell0_db
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ nova_db_conf.mariadb_socket_path }}"
+        name: "{{ nova_db_conf.nova_cell0_db_name }}"
+        state: present
+
+    - name: Create nova_db user and grant privileges of nova_api_db
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ nova_db_conf.mariadb_socket_path }}"
+        name: "{{ nova_db_conf.nova_db_user_name }}"
+        password: "{{ nova_db_conf.nova_db_user_password }}"
+        priv: "{{ nova_db_conf.nova_api_db_name }}.*:ALL"
+        state: present
+        host: "{{ item }}"
+      loop:
+        - "%"
+        - "localhost"
+
+    - name: Create nova_db user and grant privileges of nova_cell0_db
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ nova_db_conf.mariadb_socket_path }}"
+        name: "{{ nova_db_conf.nova_db_user_name }}"
+        password: "{{ nova_db_conf.nova_db_user_password }}"
+        priv: "{{ nova_db_conf.nova_cell0_db_name }}.*:ALL"
+        state: present
+        host: "{{ item }}"
+      loop:
+        - "%"
+        - "localhost"
+
+    - name: Create nova_db user and grant privileges of nova_db
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ nova_db_conf.mariadb_socket_path }}"
+        name: "{{ nova_db_conf.nova_db_user_name }}"
+        password: "{{ nova_db_conf.nova_db_user_password }}"
+        priv: "{{ nova_db_conf.nova_db_name }}.*:ALL"
+        state: present
+        host: "{{ item }}"
+      loop:
+        - "%"
+        - "localhost"
+
+- name: Create Nova's service user,role,endpoints,and project
+  block:
+    - name: Create Nova's service user in default domain
+      openstack.cloud.identity_user:
+        name: nova
+        domain: default
+        password: "{{ nova_openstack_service_password.nova }}"
+        state: present
+
+    - name: Assign nova role to nova service user
+      openstack.cloud.role_assignment:
+        project: nova
+        role: admin
+        user: nova
+        state: present
+
+    - name: Create Nova's service entity
+      openstack.cloud.catalog_service:
+        name: nova
+        description: "OpenStack Compute Service"
+        service_type: compute
+        state: present
+
+    - name: Create Nova's service endpoints
+      openstack.cloud.endpoint:
+        service: nova
+        endpoint_interface: "{{ item.endpoint_interface }}"
+        url: "{{ item.url }}"
+        region: "{{ nova_region }}"
+        state: present
+      loop:
+        - { endpoint_interface: public, url: "http://controller:8774/v2.1" }
+        - { endpoint_interface: admin, url: "http://controller:8774/v2.1" }
+        - { endpoint_interface: internal, url: "http://controller:8774/v2.1" }
+
+- name: install nova packages and deploy nova configuration
+  block:
+    - name: Install Nova Packages
+      ansible.builtin.dnf:
+        name: "{{ nova_packages }}"
+        state: present
+
+    - name: Deploy Nova Configuration Templates
+      ansible.builtin.template:
+        src: "{{ nova_conf_template_src }}"
+        dest: "{{ nova_conf_path }}"
+        mode: '0644'
+
+- name: sync the nova db
+  block:
+    # -------------------------
+    # Step 1: sync nova_api db
+    # -------------------------
+    - name: Ensure nova_api database is synced
+      ansible.builtin.command: nova-manage api_db sync
+      become: true
+      become_user: nova
+      args:
+        creates: "{{ nova_mark_files_path.nova_api_db_synced_mark_path }}"
+      register: nova_api_db_sync
+      ignore_errors: false
+
+    - name: Mark nova_api database as synced
+      ansible.builtin.file:
+        path: "{{ nova_mark_files_path.nova_api_db_synced_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: nova_api_db_sync.rc == 0
+
+    - name: Show nova_api db_sync output
+      ansible.builtin.debug:
+        msg: "{{ nova_api_db_sync.stdout_lines }}"
+
+    # -------------------------
+    # Step 2: sync nova_cell0 db
+    # -------------------------
+    - name: Ensure nova_cell0 database is synced
+      ansible.builtin.command: nova-manage cell_v2 map_cell0
+      become: true
+      become_user: nova
+      args:
+        creates: "{{ nova_mark_files_path.nova_cell0_db_synced_mark_path }}"
+      register: nova_cell0_db_sync
+      ignore_errors: false
+
+    - name: Mark nova_cell0 database as synced
+      ansible.builtin.file:
+        path: "{{ nova_mark_files_path.nova_cell0_db_synced_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: nova_cell0_db_sync.rc == 0
+
+    - name: Show nova_cell0 db_sync output
+      ansible.builtin.debug:
+        msg: "{{ nova_cell0_db_sync.stdout_lines }}"
+
+    # -------------------------
+    # Step 3: create cell1 if not exists
+    # -------------------------
+    - name: List existing cells
+      ansible.builtin.command: nova-manage cell_v2 list_cells
+      register: cell_list
+      changed_when: false
+      become: true
+      become_user: nova
+
+    - name: Create nova_cell1 if not exists
+      ansible.builtin.command: nova-manage cell_v2 create_cell --name=cell1 --verbose
+      become: true
+      become_user: nova
+      args:
+        creates: "{{ nova_mark_path.nova_cell1_created_mark_path }}"
+      when: "' cell1 ' not in cell_list.stdout"
+      register: nova_cell1_created
+      ignore_errors: false
+
+    - name: Mark nova_cell1 as created
+      ansible.builtin.file:
+        path: "{{ nova_mark_path.nova_cell1_created_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: nova_cell1_created.rc == 0
+
+    - name: Show nova_cell1 creation result
+      ansible.builtin.debug:
+        msg: "{{ nova_cell1_created.stdout_lines | default([]) }}"
+
+
+    # -------------------------
+    # Step 4: sync main nova db
+    # -------------------------
+    - name: Ensure nova main database is synced
+      ansible.builtin.command: nova-manage db sync
+      become: true
+      become_user: nova
+      args:
+        creates: "{{ nova_mark_files_path.nova_db_synced_mark_path }}"
+      register: nova_db_sync
+      ignore_errors: false
+
+    - name: Mark nova main database as synced
+      ansible.builtin.file:
+        path: "{{ nova_mark_files_path.nova_db_synced_mark_path }}"
+        state: touch
+        mode: '0644'
+      when: nova_db_sync.rc == 0
+
+    - name: Show nova main db_sync output
+      ansible.builtin.debug:
+        msg: "{{ nova_db_sync.stdout_lines }}"
+
+    # -------------------------
+    # Step 5: verify
+    # -------------------------
+    - name: Check if nova databases and cells are correctly created
+      ansible.builtin.command: nova-manage cell_v2 list_cells
+      become: true
+      become_user: nova
+      register: nova_check_result
+
+    - name: Show nova cell check result
+      ansible.builtin.debug:
+        msg: "{{ nova_check_result.stdout_lines }}"
+
+- name: enable and start all nova services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - openstack-nova-api.service
+    - openstack-nova-scheduler.service
+    - openstack-nova-conductor.service
+    - openstack-nova-novncproxy.service
+
+

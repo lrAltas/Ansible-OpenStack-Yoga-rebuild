@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/env_init
+env_init_mark_dir_path: /root/.marks
+env_init_mark_file_path: "{{ env_init_mark_dir_path }}/init_env_success.mark"
+
+env_init_hosts_path: /etc/hosts
+
+# 将把以下内容(env_init_host_mappings)按照自己的实际环境进行完善，如果你的要添加的内容多于我给的示例
+# 只要按照相同的格式添加即可
+# You will need to improve the following content according to your actual environment.
+# If you have more content to add than the example I provided, just add it in the
+env_init_host_mappings:
+  - name: controller
+    ip:
+  - name: compute1
+    ip:
+  - name: compute2
+    ip:
+
+env_init_packages:
+  - dnf-plugins-core
+  - python3-pip
+  - vim
+  - git
+  - wget
+  - centos-release-openstack-yoga
+
+env_init_openstack_client_package: python3-openstackclient
+
+
+env_init_ntp_template_src: templates/chronyd.conf.j2
+env_init_ntp_conf_path: /etc/chrony.conf
+
+env_init_ntp_server: "aliyun.ntp.com"

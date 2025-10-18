@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/dashboard
+dashboard_mark_dir_path: /root/.mark
+dashboard_mark_files_path:
+  dashboard_conf_success: "{{ dashboard_mark_dir_path }}/dashboard_conf_success"
+
+dashboard_packages:
+  - openstack-dashboard
+
+dashboard_conf_template_src_path:
+  local_settings: templates/local_settings.py.j2
+  defaults_py: templates/defaults.py.j2"
+  openstack_dashboard_conf: templates/openstack_dashboard.conf.j2
+  settings_py: templates/settings.py.j2
+
+dashboard_conf_path:
+  local_settings: /etc/openstack-dashboard/local_settings
+  defaults_py: /usr/share/openstack-dashboard/openstack_dashboard/defaults.py
+  openstack_dashboard_conf: /usr/share/openstack-dashboard/openstack_dashboard/test/settings.py
+  settings_py: /etc/httpd/conf.d/openstack-dashboard.conf
