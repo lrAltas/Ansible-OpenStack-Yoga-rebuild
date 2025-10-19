@@ -35,7 +35,7 @@
         password: "{{ glance_db_conf.db_user_password }}"
         state: present
         priv: "{{ glance_db_conf.db_name }}.*:ALL"
-        hosts: "{{ item }}"
+        host: "{{ item }}"
       loop:
         - "localhost"
         - "%"

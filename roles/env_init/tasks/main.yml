@@ -57,15 +57,19 @@
         name: "{{ env_init_packages }}"
         state: present
 
-
     - name: Upgrade python-openstacksdk package
       ansible.builtin.pip:
         name: openstacksdk==4.5.0
 
+    - name: Upgrade some pip packages
+      ansible.builtin.command:
+        cmd: pip3 install --upgrade cryptography pyopenssl
+      changed_when: false
+
     - name: Enable CRB repository
-      ansible.builtin.dnf:
-        enable_repo: CRB
-        update_cache: true
+      ansible.builtin.command:
+        cmd: dnf config-manager --set-enabled crb
+      changed_when: false
 
     - name: Install OpenStack-Client package
       ansible.builtin.dnf:

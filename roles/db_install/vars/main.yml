@@ -9,7 +9,7 @@ db_install_packages:
   - python3-PyMySQL
 
 
-db_install_db_conf_template_src: templates/99-openstack.cnf.j2
+db_install_db_conf_template_src: 99-openstack.cnf.j2
 db_install_db_conf_path: /etc/my.cnf.d/99-openstack.cnf
 
 db_install_mariadb_socket_path: /var/lib/mysql/mysql.sock

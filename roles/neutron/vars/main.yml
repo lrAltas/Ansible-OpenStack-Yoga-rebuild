@@ -30,16 +30,16 @@ neutron_controller_packages:
   - ebtables
 
 neutron_controller_conf_template_src:
-  neutron_conf: templates/neutron.conf.j2
-  ml2_conf: templates/ml2_conf.ini.j2
-  openvswitch_conf: templates/openvswitch_agent.ini.j2
-  dhcp_conf: templates/dhcp_agent.ini.j2
-  metadata_conf: templates/metadata_agent.ini.j2
-  l3_conf: templates/l3_agent.ini.j2
+  neutron_conf: neutron.conf.j2
+  ml2_conf: ml2_conf.ini.j2
+  openvswitch_conf: openvswitch_agent.ini.j2
+  dhcp_conf: dhcp_agent.ini.j2
+  metadata_conf: metadata_agent.ini.j2
+  l3_conf: l3_agent.ini.j2
 
 neutron_compute_conf_template_src:
-  neutron_conf: templates/compute_neutron.conf.j2
-  openvswitch_conf: templates/compute_openvswitch_agent.ini.j2
+  neutron_conf: compute_neutron.conf.j2
+  openvswitch_conf: compute_openvswitch_agent.ini.j2
 
 neutron_compute_conf_path:
   nova_conf: /etc/nova/nova.conf
@@ -64,5 +64,5 @@ neutron_metadata_host: "{{ hostvars[groups['controller'][0]].ansible_host }}"
 # 这个地方需要根据你的实际情况来更改
 # You need to change the vlaues to your actual situation
 neutron_ovs_conf:
-  nic_name: enp0s8
+  nic_name: enp9s0
   bridge_port_name: br-ex

@@ -34,7 +34,7 @@
         name: "{{ cinder_db_conf.db_user_name }}"
         password: "{{ cinder_db_conf.db_user_password }}"
         state: present
-        host: "{{ ietm }}"
+        host: "{{ item }}"
       loop:
         - "localhost"
         - "%"

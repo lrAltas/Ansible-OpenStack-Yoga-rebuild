@@ -22,14 +22,14 @@ keystone_mark_files_path:
   keystone_bootstrap_mark_path: "{{ keystone_mark_dir_path }}/keystone_bootstrap.mark"
   keystone_admin_sh_path: "{{ keystone_mark_dir_path }}/keystone_admin.mark"
 
-keystone_conf_template_src: templates/keystone.conf.j2
+keystone_conf_template_src: keystone.conf.j2
 keystone_conf_path: /etc/keystone/keystone.conf
 
-keystone_httpd_conf_template_src: templates/httpd.conf.j2
+keystone_httpd_conf_template_src: httpd.conf.j2
 keystone_httpd_conf_path: /etc/httpd/conf/httpd.conf
 
 keystone_httpd_conf_path_softlink_src: /usr/share/keystone/wsgi-keystone.conf
 keystone_httpd_conf_path_softlink_dest: /etc/httpd/conf.d/wsgi-keystone.conf
 
-keystone_admin_sh_template_src: templates/openstack-admin.sh.j2
+keystone_admin_sh_template_src: openstack-admin.sh.j2
 keystone_admin_sh_path: /etc/profile.d/openstack-admin.sh

@@ -10,5 +10,5 @@ memcache_packages:
   - memcached
   - python3-memcached
 
-memcache_conf_template_src: templates/memcached.conf.j2
+memcache_conf_template_src: memcached.j2
 memcache_conf_path: /etc/sysconfig/memcached

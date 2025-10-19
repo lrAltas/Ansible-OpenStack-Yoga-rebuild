@@ -13,7 +13,7 @@ glance_region: RegionOne
 glance_packages:
   - openstack-glance
 
-glance_api_conf_template_src: templates/glance_api.conf.j2
+glance_api_conf_template_src: glance-api.conf.j2
 glance_api_conf_path: /etc/glance/glance-api.conf
 
 glance_mark_files_path:

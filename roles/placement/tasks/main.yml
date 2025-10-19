@@ -23,19 +23,19 @@
     - name: Create Placement database
       community.mysql.mysql_db:
         login_user: root
-        login_unix_socket: "{{ placement_mariadb_socket_path }}"
+        login_unix_socket: "{{ placement_db_conf.mariadb_socket_path }}"
         name: "{{ placement_db_conf.db_name }}"
         state: present
 
     - name: Create Placement user
-      community.mysql.mysql_db:
+      community.mysql.mysql_user:
         login_user: root
         login_unix_socket: "{{ placement_db_conf.mariadb_socket_path }}"
         name: "{{ placement_db_conf.db_user_name }}"
         password: "{{ placement_db_conf.db_user_password }}"
         priv: "{{ placement_db_conf.db_name }}.*:ALL"
         state: present
-        hosts: "{{ item }}"
+        host: "{{ item }}"
       loop:
         - "%"
         - "localhost"
@@ -66,14 +66,14 @@
     - name: Create Placement's service endpoint
       openstack.cloud.endpoint:
         service: placement
-        endpoint_interface: "{{ item.interface }}"
+        endpoint_interface: "{{ item.endpoint_interface }}"
         url: "{{ item.url }}"
         region: "{{ placement_region }}"
         state: present
       loop:
-        - { interface: public, url: "ttp://controller:8778" }
-        - { interfdace: admin, url: "ttp://controller:8778" }
-        - { interface: internal, url: "ttp://controller:8778" }
+        - { endpoint_interface: public, url: "ttp://controller:8778" }
+        - { endpoint_interface: admin, url: "ttp://controller:8778" }
+        - { endpoint_interface: internal, url: "ttp://controller:8778" }
 
 - name: Install Placement Packages and Deploy Placement Configuration
   block:

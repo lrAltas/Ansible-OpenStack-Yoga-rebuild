@@ -27,8 +27,8 @@ cinder_packages:
   - targetcli
 
 cinder_conf_templates_src_path:
-  cinder_conf: templates/cinder.conf.j2
-  cinder_storage_conf: templates/cinder_node.conf.j2
+  cinder_conf: cinder.conf.j2
+  cinder_storage_conf: cinder_node.conf.j2
 
 cinder_conf_path:
   nova_conf: /etc/nova/nova.conf

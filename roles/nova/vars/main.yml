@@ -36,9 +36,9 @@ nova_packages:
   - openstack-nova-novncproxy
   - openstack-nova-scheduler
 
-nova_conf_template_src: templates/nova.conf.j2
+nova_conf_template_src: nova.conf.j2
 nova_conf_path: /etc/nova/nova.conf
-nova_compute_conf_template_src: templates/nova-compute.conf.j2
+nova_compute_conf_template_src: nova-compute.conf.j2
 nova_compute_conf_path: /etc/nova/nova.conf
 
 nova_openstack_rabbitmq_user_password: "000000"

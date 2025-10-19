@@ -26,7 +26,7 @@ placement_packages:
 # 这些配置文件路径非有特殊要求，否则不要动
 # Unless there are special requirements, these configuration file locations should not be changed
 placement_conf_path: /etc/placement/placement.conf
-placement_conf_template_src: templates/placement.conf.j2
+placement_conf_template_src: placement.conf.j2
 
 placement_policy_json_path: /etc/placement/policy.json
 placement_policy_yaml_path: /etc/placement/policy.yaml

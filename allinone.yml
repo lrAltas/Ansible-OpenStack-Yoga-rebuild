@@ -1,0 +1,27 @@
+---
+- name: Init env
+  hosts: all
+  serial: 1
+  roles:
+    - env_init
+
+- name: Configure controller node
+  hosts: controller
+  serial: 2
+  roles:
+    - db_install
+    - rabbitmq
+    - memcache
+    - keystone
+    - glance
+    - placement
+    - nova
+    - neutron
+    - dashboard
+
+- name: Configrue Compute node
+  hosts: compute
+  serial: 3
+  roles:
+    - nova
+    - neutron

@@ -4,7 +4,7 @@
 [cinder]
 [cors]
 [database]
-connection = mysql+pymysql://glance:{{ glance_glance_db_conf.db_user_password }}@controller/glance
+connection = mysql+pymysql://glance:{{ glance_db_conf.db_user_password }}@controller/glance
 [file]
 [glance.store.http.store]
 [glance.store.rbd.store]
@@ -28,7 +28,7 @@ project_domain_name = Default
 user_domain_name = Default
 project_name = service
 username = glance
-password = {{ glance_openstack_glance_user_password }}
+password = {{ glance_openstack_service_password }}
 [oslo_concurrency]
 [oslo_messaging_amqp]
 [oslo_messaging_kafka]

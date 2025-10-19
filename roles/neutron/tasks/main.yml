@@ -2,7 +2,7 @@
 ---
 # tasks file for roles/neutron
 - name: Configure nic configuration
-  ansible.builtin.import_tasks: neutron_configure_nic.yml
+  ansible.builtin.import_tasks: neutron_nic_configuration.yml
 
 - name: Run controller tasks
   ansible.builtin.import_tasks: neutron_controller.yml
