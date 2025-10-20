@@ -108,6 +108,7 @@
 
 # 没有特殊情况不要东配置文件的路径，个个嘎嘎改来改去，很折磨人的
 # Unless there are special requirements, these configuration file locations should not be changed
+
     - name: Deploy Neutron Configuration Template
       ansible.builtin.template:
         src: "{{ neutron_controller_conf_template_src }}"
