@@ -71,9 +71,9 @@
         region: "{{ placement_region }}"
         state: present
       loop:
-        - { endpoint_interface: public, url: "ttp://controller:8778" }
-        - { endpoint_interface: admin, url: "ttp://controller:8778" }
-        - { endpoint_interface: internal, url: "ttp://controller:8778" }
+        - { endpoint_interface: public, url: "http://controller:8778" }
+        - { endpoint_interface: admin, url: "http://controller:8778" }
+        - { endpoint_interface: internal, url: "http://controller:8778" }
 
 - name: Install Placement Packages and Deploy Placement Configuration
   block:

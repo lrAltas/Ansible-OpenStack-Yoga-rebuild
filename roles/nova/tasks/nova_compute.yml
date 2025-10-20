@@ -25,13 +25,13 @@
         name: "{{ nova_compute_packages }}"
         state: present
 
-    - name: ensure libvirtd is running and enabled
+    - name: Ensure libvirtd is running and enabled
       ansible.builtin.service:
         name: libvirtd
         state: started
         enabled: true
 
-    - name: use Templates to deploy nova compute configuration
+    - name: Use Templates to deploy nova compute configuration
       ansible.builtin.template:
         src: "{{ nova_compute_conf_template_src }}"
         dest: "{{ nova_compute_conf_path }}"
