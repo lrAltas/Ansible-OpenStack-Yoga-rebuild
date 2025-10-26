@@ -9,13 +9,13 @@ dashboard_packages:
   - openstack-dashboard
 
 dashboard_conf_template_src_path:
-  local_settings: local_settings.py.j2
-  defaults_py: defaults.py.j2"
-  openstack_dashboard_conf: openstack_dashboard.conf.j2
+  local_settings: local_settings.j2
+  defaults_py: defaults.py.j2
+  openstack_dashboard_conf: openstack-dashboard.conf.j2
   settings_py: settings.py.j2
 
 dashboard_conf_path:
   local_settings: /etc/openstack-dashboard/local_settings
   defaults_py: /usr/share/openstack-dashboard/openstack_dashboard/defaults.py
-  openstack_dashboard_conf: /usr/share/openstack-dashboard/openstack_dashboard/test/settings.py
-  settings_py: /etc/httpd/conf.d/openstack-dashboard.conf
+  openstack_dashboard_conf: /etc/httpd/conf.d/openstack-dashboard.conf
+  settings_py: /usr/share/openstack-dashboard/openstack_dashboard/test/settings.py

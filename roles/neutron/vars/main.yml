@@ -55,6 +55,7 @@ neutron_controller_conf_path:
   dhcp_conf: /etc/neutron/dhcp_agent.ini
   metadata_conf: /etc/neutron/metadata_agent.ini
   l3_conf: /etc/neutron/l3_agent.ini
+  plugin_ini: /etc/neutron/plugin.ini
 
 neutron_compute_packages:
   - openstack-neutron-openvswitch
@@ -64,5 +65,5 @@ neutron_metadata_host: "{{ hostvars[groups['controller'][0]].ansible_host }}"
 # 这个地方需要根据你的实际情况来更改
 # You need to change the vlaues to your actual situation
 neutron_ovs_conf:
-  nic_name: enp9s0
+  nic_name: enp7s0
   bridge_port_name: br-ex

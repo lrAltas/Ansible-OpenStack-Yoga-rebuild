@@ -3,7 +3,7 @@ compute_driver = libvirt.LibvirtDriver
 log_dir = /var/log/nova
 lock_path = /var/lock/nova
 state_path = /var/lib/nova
-transport_url = rabbit://openstack:{{ nova_openstack_rabbitmq_user_password }}@controller
+transport_url = rabbit://openstack:{{ nova_openstack_rabbitmq_user_password }}@controller:5672/
 my_ip = {{ ansible_host }}
 [api]
 auth_strategy = keystone

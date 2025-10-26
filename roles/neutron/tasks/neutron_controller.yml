@@ -111,8 +111,8 @@
 
     - name: Deploy Neutron Configuration Template
       ansible.builtin.template:
-        src: "{{ neutron_controller_conf_template_src }}"
-        dest: "{{ neutron_controller_conf_path }}"
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
         mode: '0644'
       loop:
         - { src: "{{ neutron_controller_conf_template_src.neutron_conf }}", dest: "{{ neutron_controller_conf_path.neutron_conf }}" }
@@ -129,7 +129,7 @@
 # So here ml2_conf.ini is used to replace plugin.ini
     - name: Ensure Neutron Plugin.ini Symlink Exists(ml2_conf.ini)
       ansible.builtin.file:
-        path: "{{ neutron_controller_conf_path.ml2_conf }}"
+        src: "{{ neutron_controller_conf_path.ml2_conf }}"
         dest: "{{ neutron_controller_conf_path.plugin_ini }}"
         state: link
         mode: '0644'

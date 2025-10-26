@@ -1,0 +1,55 @@
+---
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ skyline_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if skyline tasks have been run
+      ansible.builtin.stat:
+        name: "{{ skyline_mark_files_path.skyline_controller }}"
+      register: skyline_mark_file
+
+    - name: Skip if skyline tasks have been run
+      ansible.builtin.meta: end_role
+      when: skyline_mark_file.stat.exists
+
+- name: Create Skyline db and db_user
+  block:
+    - name: Create Skyline db
+      community.mysql.mysql_db:
+        login_user: root
+        login_unix_socket: "{{ skyline_db_conf.mariadb_socket_path }}"
+        name: "{{ skyline_db_conf.skyline_db_name }}"
+        state: present
+
+    - name: Create Skyline db_user
+      community.mysql.mysql_user:
+        login_user: root
+        login_unix_socket: "{{ skyline_db_conf.mariadb_socket_path }}"
+        name: "{{ skyline_db_conf.skyline_db_user_name }}"
+        password: "{{ skyline_db_conf.skyline_db_user_password }}"
+        state: present
+        priv: "{{ skyline_db_conf.skyline_db_name }}.*:ALL"
+        host: "{{ item }}"
+      loop:
+        - "localhost"
+        - "%"
+
+- name: Create OpenStack Skyline Service user and assign admin role to skyline
+  block:
+    - name: Create OpenStack Skyline Service User
+      openstack.cloud.identity_user:
+        name: skyline
+        domain: default
+        password: "{{ skyline_openstack_service_password.skyline }}"
+        state: present
+
+    - name: Assign admin role to skyline
+      openstack.cloud.role_assignment:
+        user: skyline
+        project: service
+        role: admin
+        state: present

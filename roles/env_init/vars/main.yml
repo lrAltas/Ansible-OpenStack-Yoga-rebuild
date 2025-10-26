@@ -12,11 +12,11 @@ env_init_hosts_path: /etc/hosts
 # If you have more content to add than the example I provided, just add it in the
 env_init_host_mappings:
   - name: controller
-    ip: 192.168.122.100
+    ip: 10.1.10.50
   - name: compute1
-    ip: 192.168.122.101
+    ip: 10.1.10.51
   - name: compute2
-    ip: 192.168.122.102
+    ip: 10.1.10.52
 
 env_init_packages:
   - dnf-plugins-core
@@ -25,7 +25,7 @@ env_init_packages:
   - git
   - wget
   - epel-release
-  - centos-release-openstack-yoga
+  - centos-release-openstack-dalmatian
 
 env_init_openstack_client_package: python3-openstackclient
 
@@ -33,4 +33,4 @@ env_init_openstack_client_package: python3-openstackclient
 env_init_ntp_template_src: chrony.conf.j2
 env_init_ntp_conf_path: /etc/chrony.conf
 
-env_init_ntp_server: "aliyun.ntp.com"
+env_init_ntp_server: "ntp.aliyun.com"

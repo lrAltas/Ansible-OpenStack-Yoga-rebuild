@@ -1,0 +1,136 @@
+---
+- name: Check if the tasks has been running
+  block:
+    - name: Ensure Mark Directory Exists
+      ansible.builtin.file:
+        path: "{{ skyline_mark_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check if skyline tasks have been run
+      ansible.builtin.stat:
+        name: "{{ skyline_mark_files_path.skyline_node }}"
+      register: skyline_mark_file
+
+    - name: Skip if skyline tasks have been run
+      ansible.builtin.meta: end_role
+      when: skyline_mark_file.stat.exists
+
+- name: Pre Works(Configure Docker Repo to HUAWEI Cloud)
+  block:
+    - name: Remove old version of Docker Engine
+      ansible.builtin.dnf:
+        name: "{{ skyline_old_docker_packages }}"
+        state: absent
+
+    - name: Download Docker-CE Repo From HUAWEI Cloud
+      ansible.builtin.get_url:
+        url: "{{ skyline_docker_repo_url }}"
+        dest: "{{ skyline_docker_repo_path }}"
+        mode: '0644'
+
+    - name: Replace Docker-CE Repo domain to HUAWEI Cloud
+      ansible.builtin.replace:
+        path: "{{ skyline_docker_repo_path }}"
+        regexp: 'download.docker.com'
+        replace: 'mirrors.huaweicloud.com/docker-ce'
+
+    - name: Make Repolsitory Cache
+      ansible.builtin.command:
+        cmd: "dnf makecache"
+      changed_when: false
+
+    - name: Install Docker CE
+      ansible.builtin.dnf:
+        name: "{{ skyline_docker_ce_packages }}"
+        state: present
+
+    - name: Enable and start Docker Service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Deploy Docker daemon.json from template
+      ansible.builtin.template:
+        src: "{{ skyline_docker_daemon_json_template }}"
+        dest: "{{ skyline_docker_daemon_json_path }}"
+        mode: '0644'
+
+    - name: Restart Docker Service
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+        enabled: true
+
+- name: Ensure Rrequired Directories Exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ skyline_required_directories }}"
+
+- name: Deploy Skyline Service
+  block:
+    - name: Render Skyline configure file from templates
+      ansible.builtin.template:
+        src: "{{ skyline_conf_template }}"
+        dest: "{{ skyline_conf_path }}"
+        mode: '0644'
+
+    - name: Pull Skyline Docker Image
+      community.docker.docker_image:
+        name: "{{ skyline_docker_image }}"
+        source: pull
+
+    - name: Run Skyline BootStrape Container
+      community.docker.docker_container:
+        name: skyline-bootstrap
+        image: "{{ skyline_docker_image }}"
+        state: started
+        detach: true
+        network_mode: host
+        volumes:
+          - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
+          - "/var/log:/var/log"
+        env:
+          KOLLA_BOOTSTRAP: ""
+
+    - name: Wait for bootstrap container to finish
+      ansible.builtin.shell: |
+        set -o pipefail
+        while docker ps -a --filter "name=skyline_bootstrap" --format "{{ "{{.Status}}" }}" | grep -q "^Up"; do
+          sleep 2
+        done
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+
+    - name: Show bootstrap logs
+      ansible.builtin.command:
+        cmd: docker logs skyline_bootstrap
+      register: skyline_bootstrap_logs
+      changed_when: false
+
+    - name: Print bootstrap logs
+      ansible.builtin.debug:
+        msg: "{{ skyline_bootstrap_logs.stdout_lines }}"
+
+    - name: Remove Skyline bootstrap container
+      community.docker.docker_container:
+        name: skyline_bootstrap
+        state: absent
+        force_kill: true
+
+    - name: Run Skyline final container
+      community.docker.docker_container:
+        name: skyline
+        image: "{{ skyline_docker_image }}"
+        state: started
+        restart_policy: always
+        detach: true
+        network_mode: host
+        volumes:
+          - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
+          - "/var/log:/var/log"

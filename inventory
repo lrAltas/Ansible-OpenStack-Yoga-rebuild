@@ -1,5 +1,5 @@
 [controller]
-192.168.122.100
+controller ansible_host=10.1.10.50
 [compute]
-192.168.122.101
-192.168.122.102
+compute01 ansible_host=10.1.10.51
+compute02 ansible_host=10.1.10.52
