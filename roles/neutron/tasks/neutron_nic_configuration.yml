@@ -52,3 +52,9 @@
         bridge: "{{ neutron_ovs_conf.bridge_port_name }}"
         port: "{{ neutron_ovs_conf.nic_name }}"
         state: present
+
+- name: Create Marks to indicate the tasks have been run
+  ansible.builtin.file:
+    path: "{{ neutron_mark_files_path.nic_conf_success }}"
+    state: touch
+    mode: '0755'

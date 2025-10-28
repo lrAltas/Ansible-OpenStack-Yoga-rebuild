@@ -11,6 +11,8 @@ env_init_hosts_path: /etc/hosts
 # You will need to improve the following content according to your actual environment.
 # If you have more content to add than the example I provided, just add it in the
 env_init_host_mappings:
+  - name: skyline
+    ip: 10.1.10.49
   - name: controller
     ip: 10.1.10.50
   - name: compute1

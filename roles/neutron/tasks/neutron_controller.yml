@@ -198,3 +198,9 @@
     - neutron-dhcp-agent
     - neutron-metadata-agent
     - neutron-l3-agent
+
+- name: Create Mark file to indicate that the tasks have been run
+  ansible.builtin.file:
+    path: "{{ neutron_mark_files_path.controller_conf_success }}"
+    state: touch
+    mode: '0644'

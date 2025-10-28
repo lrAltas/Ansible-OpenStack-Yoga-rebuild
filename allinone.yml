@@ -17,7 +17,7 @@
     - placement
     - nova
     - neutron
-    - dashboard
+    - skyline
 
 - name: Configrue Compute node
   hosts: compute
@@ -25,3 +25,9 @@
   roles:
     - nova
     - neutron
+
+- name: Configure Skyline node
+  hosts: skyline
+  serial: 4
+  roles:
+    - skyline

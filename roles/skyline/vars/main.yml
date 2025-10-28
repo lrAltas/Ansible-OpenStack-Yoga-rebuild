@@ -2,7 +2,7 @@
 ---
 # vars file for roles/skyline
 skyline_mark_dir_path: "/root/.marks"
-skyline_mark_file_path:
+skyline_mark_files_path:
   skyline_controller: "{{ skyline_mark_dir_path }}/skyline_success.mark"
   skyline_node: "{{ skyline_mark_dir_path }}/skyline_success.mark"
 
@@ -25,6 +25,7 @@ skyline_docker_repo_url: "https://mirrors.huaweicloud.com/docker-ce/linux/centos
 skyline_docker_repo_path: "/etc/yum.repos.d/docker-ce.repo"
 
 skyline_docker_ce_packages:
+  - docker-ce
   - dnf-utils
   - device-mapper-persistent-data
   - lvm2
@@ -33,7 +34,7 @@ skyline_docker_daemon_json_template: templates/daemon.json.j2
 skyline_conf_template: templates/skyline.yaml.j2
 
 skyline_docker_daemon_json_path: /etc/docker/daemon.json
-skyline_config_path: /etc/skyline/skyline.yaml
+skyline_conf_path: /etc/skyline/skyline.yaml
 
 
 skyline_required_directories:

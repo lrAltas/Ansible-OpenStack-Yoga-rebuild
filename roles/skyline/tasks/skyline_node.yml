@@ -85,7 +85,7 @@
 
     - name: Run Skyline BootStrape Container
       community.docker.docker_container:
-        name: skyline-bootstrap
+        name: skyline_bootstrap
         image: "{{ skyline_docker_image }}"
         state: started
         detach: true
@@ -105,7 +105,6 @@
       args:
         executable: /bin/bash
       changed_when: false
-
 
     - name: Show bootstrap logs
       ansible.builtin.command:
@@ -134,3 +133,9 @@
         volumes:
           - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
           - "/var/log:/var/log"
+
+- name: Create Mark file to indicate that the tasks have been run
+  ansible.builtin.file:
+    path: "{{ skyline_mark_files_path.skyline_node }}"
+    state: touch
+    mode: '0644'
