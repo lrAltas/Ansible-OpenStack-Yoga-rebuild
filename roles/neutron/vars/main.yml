@@ -65,5 +65,5 @@ neutron_metadata_host: "{{ hostvars[groups['controller'][0]].ansible_host }}"
 # 这个地方需要根据你的实际情况来更改
 # You need to change the vlaues to your actual situation
 neutron_ovs_conf:
-  nic_name: enp7s0
+  nic_name: enp2s0
   bridge_port_name: br-ex

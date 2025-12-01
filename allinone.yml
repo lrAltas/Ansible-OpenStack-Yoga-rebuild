@@ -17,7 +17,6 @@
     - placement
     - nova
     - neutron
-    - skyline
 
 - name: Configrue Compute node
   hosts: compute
@@ -26,7 +25,7 @@
     - nova
     - neutron
 
-- name: Configure Skyline node
+- name: Configure Skyline Node
   hosts: skyline
   serial: 4
   roles:

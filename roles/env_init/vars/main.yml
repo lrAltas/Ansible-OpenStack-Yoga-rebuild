@@ -15,9 +15,9 @@ env_init_host_mappings:
     ip: 10.1.10.49
   - name: controller
     ip: 10.1.10.50
-  - name: compute1
+  - name: compute01
     ip: 10.1.10.51
-  - name: compute2
+  - name: compute02
     ip: 10.1.10.52
 
 env_init_packages:
