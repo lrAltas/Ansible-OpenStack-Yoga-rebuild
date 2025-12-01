@@ -71,9 +71,9 @@
         region: "{{ neutron_region }}"
         state: present
       loop:
-        - { endpoint_interface: public, url: "http://controller:9696"}
-        - { endpoint_interface: internal, url: "http://controller:9696"}
-        - { endpoint_interface: admin, url: "http://controller:9696"}
+        - { endpoint_interface: public, url: "http://{{ groups['controller'][0] }}:9696"}
+        - { endpoint_interface: internal, url: "http://{{ groups['controller'][0] }}:9696"}
+        - { endpoint_interface: admin, url: "http://{{ groups['controller'][0] }}:9696"}
 
 - name: Configure Sysctl Parameters for network
   block:
@@ -144,7 +144,7 @@
         mode: "0644"
       loop:
         - { section: DEFAULT, option: linuxnet_interface_driver, value: nova.network.linux_net.LinuxOVSlnterfaceDriver }
-        - { section: neutron, option: auth_url, value: "http://controller:5000" }
+        - { section: neutron, option: auth_url, value: "http://{{ groups['controller'][0] }}:5000" }
         - { section: neutron, option: auth_type, value: password }
         - { section: neutron, option: project_domain_name, value: default }
         - { section: neutron, option: user_domain_name, value: default }

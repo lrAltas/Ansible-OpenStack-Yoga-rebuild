@@ -9,19 +9,19 @@ dhcp_agent_notification = true
 allow_overlapping_ips = true
 notify_nova_on_port_status_changes = true
 notify_nova_on_port_data_changes = true
-transport_url = rabbit://openstack:{{ neutron_openstack_rabbitmq_user_password }}@controller
+transport_url = rabbit://openstack:{{ neutron_openstack_rabbitmq_user_password }}@{{ groups['controller'][0] }}
 [agent]
 root_helper = "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
 [cache]
 [cors]
 [database]
-connection = mysql+pymysql://neutron:{{ neutron_db_conf.db_user_password }}@controller/neutron
+connection = mysql+pymysql://neutron:{{ neutron_db_conf.db_user_password }}@{{ groups['controller'][0] }}/neutron
 [healthcheck]
 [ironic]
 [keystone_authtoken]
-www_authenticate_uri = http://controller:5000
-auth_url = http://controller:5000
-memcached_servers = controller:11211
+www_authenticate_uri = http://{{ groups['controller'][0] }}:5000
+auth_url = http://{{ groups['controller'][0] }}:5000
+memcached_servers = {{ groups['controller'][0] }}:11211
 auth_type = password
 project_domain_name = default
 user_domain_name = default
@@ -29,7 +29,7 @@ project_name = service
 username = neutron
 password = {{ neutron_openstack_service_password.neutron }}
 [nova]
-auth_url = http://controller:5000
+auth_url = http://{{ groups['controller'][0] }}:5000
 auth_type = password
 project_domain_name = default
 user_domain_name = default

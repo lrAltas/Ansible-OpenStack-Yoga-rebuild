@@ -63,17 +63,17 @@
         service_type: placement
         state: present
 
-    - name: Create Placement's service endpoint
+    - name: Create Placement service endpoints
       openstack.cloud.endpoint:
         service: placement
-        endpoint_interface: "{{ item.endpoint_interface }}"
-        url: "{{ item.url }}"
-        region: "{{ placement_region }}"
+        endpoint_interface: "{{ item }}"
+        url: "http://{{ groups['controller'][0] }}:8778"
+        region: "{{ placement_region | default('RegionOne') }}"
         state: present
       loop:
-        - { endpoint_interface: public, url: "http://controller:8778" }
-        - { endpoint_interface: admin, url: "http://controller:8778" }
-        - { endpoint_interface: internal, url: "http://controller:8778" }
+        - public
+        - internal
+        - admin
 
 - name: Install Placement Packages and Deploy Placement Configuration
   block:

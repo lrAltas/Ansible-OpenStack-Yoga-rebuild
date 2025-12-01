@@ -3,8 +3,8 @@
 auth_strategy = keystone
 [cors]
 [keystone_authtoken]
-auth_url = http://controller:5000/v3
-memcached_servers = controller:11211
+auth_url = http://{{ groups['controller'][0] }}:5000/v3
+memcached_servers = {{ groups['controller'][0] }}:11211
 auth_type = password
 project_domain_name = Default
 user_domain_name = Default
@@ -15,5 +15,5 @@ password = {{ placement_openstack_service_password }}
 [oslo_policy]
 [placement]
 [placement_database]
-connection = mysql+pymysql://placement:{{ placement_db_conf.db_user_password }}@controller/placement
+connection = mysql+pymysql://placement:{{ placement_db_conf.db_user_password }}@{{ groups['controller'][0] }}/placement
 [profiler]

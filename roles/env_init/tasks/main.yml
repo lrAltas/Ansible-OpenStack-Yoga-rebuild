@@ -27,12 +27,32 @@
 # This block configures the hosts file on the host, adding mappings of hostnames to IP
 - name: Configure add host_namppings to hosts file
   ansible.builtin.blockinfile:
-    path: "{{ env_init_hosts_path }}"
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - INVENTORY HOSTS"
+    backup: true
     block: |
-      {% for item in env_init_host_mappings %}
-      {{ item.ip }} {{ item.name }}
+      {% for host in groups['all'] %}
+      {%   set ip = hostvars[host]['ansible_host']
+                   | default(hostvars[host]['inventory_hostname']) %}
+      {%   set name = hostvars[host]['inventory_hostname'] %}
+      {%   set short = hostvars[host]['inventory_hostname_short'] %}
+      {{ ip }} {{ name }}{% if short is defined %} {{ short }}{% endif %}
       {% endfor %}
-    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+
+# 弃用的写法
+# - name: Configure add host_namppings to hosts file
+#   ansible.builtin.blockinfile:
+#     path: "{{ env_init_hosts_path }}"
+#     block: |
+#       {% for item in env_init_host_mappings %}
+#       {{ item.ip }} {{ item.name }}
+#       {% endfor %}
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK"
+# 2025.12.01 We found that if all tasks success ,the hostname shouldent be changed again.
+# So we should set the hostname only once ,by playbook
+- name: Set hostnames
+  ansible.builtiin.hostname:
+    name: "{{ inventory_hostname }}"
 
 # 在示例环境中，我们需要需要关闭防火墙以避免影响服务间的通信
 # In the example environment, we need to disable the firewall to avoid affecting communication between services

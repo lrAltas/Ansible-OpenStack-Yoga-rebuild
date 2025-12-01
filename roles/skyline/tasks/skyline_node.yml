@@ -1,26 +1,7 @@
 ---
-# From 2025.11.25 I decided to use source based deployment for skyline node role.
-# - name: Check if the tasks has been running
-#   block:
-#     - name: Ensure Mark Directory Exists
-#       ansible.builtin.file:
-#         path: "{{ skyline_mark_dir_path }}"
-#         state: directory
-#         mode: '0755'
+# These tasks has been commented out intentionally is actually the docker based deployment
+# I don't think these tasks as the docker based deployment is suitable for skyline node role.
 
-#     - name: Check if skyline tasks have been run
-#       ansible.builtin.stat:
-#         name: "{{ skyline_mark_files_path.skyline_node }}"
-#       register: skyline_mark_file
-
-#     - name: Skip if skyline tasks have been run
-#       ansible.builtin.meta: end_role
-#       when: skyline_mark_file.stat.exists
-
-# - name: Install necessary packages for skyline node
-
-#These tasks has been commented out intentionally is actually the docker based deployment
-#I don't think these tasks as the docker based deployment is suitable for skyline node role.
 - name: Check if the tasks has been running
   block:
     - name: Ensure Mark Directory Exists
@@ -73,17 +54,40 @@
         state: started
         enabled: true
 
-    - name: Deploy Docker daemon.json from template
-      ansible.builtin.template:
-        src: "{{ skyline_docker_daemon_json_template }}"
-        dest: "{{ skyline_docker_daemon_json_path }}"
-        mode: '0644'
+    - name: Ensure docker.service.d directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        mode: "0755"
 
-    - name: Restart Docker Service
+    - name: Configure Docker daemon to use local mixed proxy 10808
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+        mode: "0644"
+        content: |
+          [Service]
+          Environment="HTTP_PROXY=http://127.0.0.1:10808"
+          Environment="HTTPS_PROXY=http://127.0.0.1:10808"
+          Environment="NO_PROXY=localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.aliyuncs.com"
+
+    - name: Restart Docker if proxy config changed
       ansible.builtin.service:
         name: docker
         state: restarted
-        enabled: true
+        daemon_reload: true
+      when: "'Configure Docker daemon to use local mixed proxy 10808' in ansible_run_tags or not ansible_check_mode"
+
+    # - name: Deploy Docker daemon.json from template
+    #   ansible.builtin.template:
+    #     src: "{{ skyline_docker_daemon_json_template }}"
+    #     dest: "{{ skyline_docker_daemon_json_path }}"
+    #     mode: '0644'
+
+    # - name: Restart Docker Service
+    #   ansible.builtin.service:
+    #     name: docker
+    #     state: restarted
+    #     enabled: true
 
 - name: Ensure Rrequired Directories Exist
   ansible.builtin.file:

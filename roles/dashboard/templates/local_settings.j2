@@ -106,8 +106,8 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
 CACHES = {
     'default': {
-         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-         'LOCATION': 'controller:11211',
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'LOCATION': '{{ groups['controller'][0] }}:11211',
     }
 }
 

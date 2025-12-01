@@ -1,0 +1,6 @@
+---
+- name: skyline
+  serial: 1
+  hosts: controller
+  roles:
+    - skyline

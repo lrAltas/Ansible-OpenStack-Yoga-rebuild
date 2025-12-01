@@ -71,9 +71,9 @@
         region: "{{ glance_region }}"
         state: present
       loop:
-        - { endpoint_interface: public, url: "http://controller:9292"}
-        - { endpoint_interface: internal, url: "http://controller:9292"}
-        - { endpoint_interface: admin, url: "http://controller:9292"}
+        - { endpoint_interface: public, url: "http://{{ groups['controller'][0] }}:9292"}
+        - { endpoint_interface: internal, url: "http://{{ groups['controller'][0] }}:9292"}
+        - { endpoint_interface: admin, url: "http://{{ groups['controller'][0] }}:9292"}
 
 - name: Install Glance Packages and Configrue Glance
   block:

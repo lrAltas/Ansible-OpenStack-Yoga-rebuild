@@ -8,7 +8,7 @@ log_dir = /var/log/keystone
 [cors]
 [credential]
 [database]
-connection = mysql+pymysql://keystone:{{ keystone_db_conf.db_user_password }}@controller/keystone
+connection = mysql+pymysql://keystone:{{ keystone_db_conf.db_user_password }}@{{ groups['controller'][0] }}/keystone
 [domain_config]
 [endpoint_filter]
 [endpoint_policy]

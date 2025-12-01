@@ -69,7 +69,7 @@
         - { section: DEFAULT, option: linuxnet_interface_driver, value: nova.network.linux_net.LinuxOVSlnterfaceDriver }
         - { section: DEFAULT, option: vif_plugging_is_fatal, value: true }
         - { section: DEFAULT, option: vif_plugging_timeout, value: 300 }
-        - { section: neutron, option: auth_url, value: "http://controller:5000" }
+        - { section: neutron, option: auth_url, value: "http://{{ groups['controller'][0] }}:5000" }
         - { section: neutron, option: auth_type, value: password }
         - { section: neutron, option: project_domain_name, value: default }
         - { section: neutron, option: user_domain_name, value: default }

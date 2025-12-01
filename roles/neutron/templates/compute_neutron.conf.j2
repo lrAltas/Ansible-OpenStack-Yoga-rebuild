@@ -4,7 +4,7 @@ service_plugins = router
 auth_strategy = keystone
 state_path = /var/lib/neutron
 allow_overlapping_ips = true
-transport_url = rabbit://openstack:{{ neutron_openstack_rabbitmq_user_password }}@controller
+transport_url = rabbit://openstack:{{ neutron_openstack_rabbitmq_user_password }}@{{ groups['controller'][0] }}
 linuxnet_interface_driver = nova.network.linux_net.LinuxOVSlnterfaceDriver
 [agent]
 root_helper = "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
@@ -14,9 +14,9 @@ root_helper = "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
 [healthcheck]
 [ironic]
 [keystone_authtoken]
-www_authenticate_uri = http://controller:5000
-auth_url = http://controller:5000
-memcached_servers = controller:11211
+www_authenticate_uri = http://{{ groups['controller'][0] }}:5000
+auth_url = http://{{ groups['controller'][0] }}:5000
+memcached_servers = {{ groups['controller'][0] }}:11211
 auth_type = password
 project_domain_name = default
 user_domain_name = default
@@ -38,7 +38,7 @@ lock_path = /var/lib/neutron/tmp
 [quotas]
 [ssl]
 [neutron]
-auth_url = http://controller:5000
+auth_url = http://{{ groups['controller'][0] }}:5000
 auth_type = password
 project_domain_name = default
 user_domain_name = default

@@ -4,7 +4,7 @@
 [cinder]
 [cors]
 [database]
-connection = mysql+pymysql://glance:{{ glance_db_conf.db_user_password }}@controller/glance
+connection = mysql+pymysql://glance:{{ glance_db_conf.db_user_password }}@{{ groups['controller'][0] }}/glance
 [file]
 [glance.store.http.store]
 [glance.store.rbd.store]
@@ -20,9 +20,9 @@ filesystem_store_datadir = /var/lib/glance/images/
 disk_formats = ami,ari,aki,vhd,vhdx,vmdk,raw,qcow2,vdi,iso,ploop.root-tar
 [key_manager]
 [keystone_authtoken]
-www_authenticate_uri = http://controller:5000
-auth_url = http://controller:5000
-memcached_servers = controller:11211
+www_authenticate_uri = http://{{ groups['controller'][0] }}:5000
+auth_url = http://{{ groups['controller'][0] }}:5000
+memcached_servers = {{ groups['controller'][0] }}:11211
 auth_type = password
 project_domain_name = Default
 user_domain_name = Default

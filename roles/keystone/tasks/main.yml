@@ -136,10 +136,10 @@
     - name: Bootstrap Keystone
       ansible.builtin.shell: |
         keystone-manage bootstrap \
-          --bootstrap-password 000000 \
-          --bootstrap-admin-url http://controller:5000/v3/ \
-          --bootstrap-internal-url http://controller:5000/v3/ \
-          --bootstrap-public-url http://controller:5000/v3/ \
+          --bootstrap-password {{ keystone_admin_password | default('000000') }} \
+          --bootstrap-admin-url http://{{ inventory_hostname }}:5000/v3/ \
+          --bootstrap-internal-url http://{{ inventory_hostname }}:5000/v3/ \
+          --bootstrap-public-url http://{{ inventory_hostname }}:5000/v3/ \
           --bootstrap-region-id RegionOne
       changed_when: false
       when: not keystone_bootstrap_mark.stat.exists
