@@ -34,7 +34,8 @@
 # 2025-10-22 01:29:46.687 4945 ERROR nova OSError: Server unexpectedly closed connection
 # 2025-10-22 01:29:46.687 4945 ERROR nova
 # 2025-10-22 01:29:49.861 4991 INFO os_vif [-] Loaded VIF plugins: linux_bridge, noop, ovs
-# 2025-10-22 01:29:50.061 4991 CRITICAL nova [None req-67e49c93-2a04-4247-a081-5a1de8083d5f - - - - - -] Unhandled error: OSError: Server unexpectedly closed connection
+# 2025-10-22 01:29:50.061 4991 CRITICAL nova [None req-67e49c93-2a04-4247-a081-5a1de8083d5f - - - - - -]
+#  Unhandled error: OSError: Server unexpectedly closed connection
 # 2025-10-22 01:29:50.061 4991 ERROR nova Traceback (most recent call last):
 # 2025-10-22 01:29:50.061 4991 ERROR nova   File "/usr/lib/python3.9/site-packages/amqp/connection.py", line 511, in channel
 # 2025-10-22 01:29:50.061 4991 ERROR nova     return self.channels[channel_id]
