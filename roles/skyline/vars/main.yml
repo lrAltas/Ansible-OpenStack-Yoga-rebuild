@@ -25,7 +25,8 @@ skyline_docker_repo_url: "https://mirrors.huaweicloud.com/docker-ce/linux/centos
 skyline_docker_repo_path: "/etc/yum.repos.d/docker-ce.repo"
 
 skyline_docker_ce_packages:
-  - docker-ce
+  - podman
+  - podman-docker
   - dnf-utils
   - device-mapper-persistent-data
   - lvm2
@@ -33,12 +34,11 @@ skyline_docker_ce_packages:
 skyline_docker_daemon_json_template: templates/daemon.json.j2
 skyline_conf_template: templates/skyline.yaml.j2
 
-skyline_docker_daemon_json_path: /etc/docker/daemon.json
-skyline_conf_path: /etc/skyline/skyline.yaml
-
+skyline_conf_dir_path: /etc/skyline
+skyline_conf_path: "{{ skyline_conf_dir_path }}/skyline.yaml"
 
 skyline_required_directories:
-  - /etc/skyline
+  - "{{ skyline_conf_dir_path }}"
   - /var/log/skyline
   - /var/lib/skyline
   - /var/log/nginx

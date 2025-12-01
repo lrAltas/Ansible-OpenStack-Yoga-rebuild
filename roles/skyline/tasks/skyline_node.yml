@@ -19,63 +19,140 @@
       ansible.builtin.meta: end_role
       when: skyline_mark_file.stat.exists
 
-- name: Pre Works(Configure Docker Repo to HUAWEI Cloud)
-  block:
-    - name: Remove old version of Docker Engine
-      ansible.builtin.dnf:
-        name: "{{ skyline_old_docker_packages }}"
-        state: absent
+- name: Remove old Docker packages if exist
+  ansible.builtin.dnf:
+    name: "{{ skyline_old_docker_packages }}"
+    state: absent
 
-    - name: Download Docker-CE Repo From HUAWEI Cloud
-      ansible.builtin.get_url:
-        url: "{{ skyline_docker_repo_url }}"
-        dest: "{{ skyline_docker_repo_path }}"
+- name: Install Podman packages
+  ansible.builtin.dnf:
+    name: "{{ skyline_podman_package }}"
+    state: present
+
+- name: Deploy skyline configuration file
+  block:
+    - name: Ensure Rrequired Directories Exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ skyline_required_directories }}"
+
+    - name: Deploy templates/skyline.yaml.j2 to /etc/skyline/skyline.yaml
+      ansible.builtin.template:
+        src: "{{ skyline_conf_template }}"
+        dest: "{{ skyline_conf_path }}"
         mode: '0644'
 
-    - name: Replace Docker-CE Repo domain to HUAWEI Cloud
-      ansible.builtin.replace:
-        path: "{{ skyline_docker_repo_path }}"
-        regexp: 'download.docker.com'
-        replace: 'mirrors.huaweicloud.com/docker-ce'
 
-    - name: Make Repolsitory Cache
-      ansible.builtin.command:
-        cmd: "dnf makecache"
-      changed_when: false
+- name: Pull and Run Skyline Container
+  block:
+    - name: Pull 99cloud/skyline:latest from docker.1panel.live
+      containers.podman.podman_image:
+        name: docker.1panel.live/99cloud/skyline  # registry + namespace + image
+        tag: latest  # 可省略，默认 latest
+        state: present  # 确保存在
+        pull: true  # 默认拉取
+        force: false  # 如果已存在，不强制拉取（改 true 强制更新）
+        validate_certs: true  # 验证 HTTPS 证书
+        # username: your_username  # 如果需要认证，取消注释
+        # password: your_password  # 敏感信息建议用 vault 或 vars
+        # auth_file: /path/to/auth.json  # 或用文件认证
 
-    - name: Install Docker CE
-      ansible.builtin.dnf:
-        name: "{{ skyline_docker_ce_packages }}"
-        state: present
+    - name: Run Skyline bootstrap Container
+      containers.podman.podman_container:
+        name: skyline_bootstrap                     # --name
+        image: docker.1panel.live/99cloud/skyline:latest   # 你现在用的 registry
+        state: started                              # 自动 pull + 启动
+        detach: true                                # -d
+        env:                                        # -e
+          KOLLA_BOOTSTRAP: ""
+        volume:                                     # -v
+          - /etc/skyline/skyline.yaml:/etc/skyline/skyline.yaml
+          - /var/log:/var/log
+        network_mode: host                          # --net=host
+        restart_policy: false                          # 不自动重启（bootstrap 通常只跑一次）
 
-    - name: Enable and start Docker Service
-      ansible.builtin.service:
-        name: docker
+    - name: Wait for bootstrap container to finish
+      ansible.builtin.pause:
+        minutes: 0
+        seconds: 12
+
+    - name: Force remove skyline_bootstrap container
+      containers.podman.podman_container:
+        name: skyline_bootstrap
+        state: absent
+      failed_when: false
+
+    - name: Run Skyline final Container
+      containers.podman.podman_container:
+        name: skyline
+        image: docker.1panel.live/99cloud/skyline:latest
         state: started
-        enabled: true
+        detach: true
+        restart_policy: always
+        network_mode: host
+        volume:
+          - "{{ skyline_conf_path }}:{{ skyline_conf_path }}"
+          - /var/log:/var/log
 
-    - name: Ensure docker.service.d directory exists
-      ansible.builtin.file:
-        path: /etc/systemd/system/docker.service.d
-        state: directory
-        mode: "0755"
+# - name: Pre Works(Configure Docker Repo to HUAWEI Cloud)
+#   block:
+#     - name: Remove old version of Docker Engine
+#       ansible.builtin.dnf:
+#         name: "{{ skyline_old_docker_packages }}"
+#         state: absent
 
-    - name: Configure Docker daemon to use local mixed proxy 10808
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/docker.service.d/http-proxy.conf
-        mode: "0644"
-        content: |
-          [Service]
-          Environment="HTTP_PROXY=http://127.0.0.1:10808"
-          Environment="HTTPS_PROXY=http://127.0.0.1:10808"
-          Environment="NO_PROXY=localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.aliyuncs.com"
+#     - name: Download Docker-CE Repo From HUAWEI Cloud
+#       ansible.builtin.get_url:
+#         url: "{{ skyline_docker_repo_url }}"
+#         dest: "{{ skyline_docker_repo_path }}"
+#         mode: '0644'
 
-    - name: Restart Docker if proxy config changed
-      ansible.builtin.service:
-        name: docker
-        state: restarted
-        daemon_reload: true
-      when: "'Configure Docker daemon to use local mixed proxy 10808' in ansible_run_tags or not ansible_check_mode"
+#     - name: Replace Docker-CE Repo domain to HUAWEI Cloud
+#       ansible.builtin.replace:
+#         path: "{{ skyline_docker_repo_path }}"
+#         regexp: 'download.docker.com'
+#         replace: 'mirrors.huaweicloud.com/docker-ce'
+
+    # - name: Make Repolsitory Cache
+    #   ansible.builtin.command:
+    #     cmd: "dnf makecache"
+    #   changed_when: false
+
+    # - name: Install Docker CE
+    #   ansible.builtin.dnf:
+    #     name: "{{ skyline_docker_ce_packages }}"
+    #     state: present
+
+    # - name: Enable and start Docker Service
+    #   ansible.builtin.service:
+    #     name: docker
+    #     state: started
+    #     enabled: true
+
+    # - name: Ensure docker.service.d directory exists
+    #   ansible.builtin.file:
+    #     path: /etc/systemd/system/docker.service.d
+    #     state: directory
+    #     mode: "0755"
+
+    # - name: Configure Docker daemon to use local mixed proxy 10808
+    #   ansible.builtin.copy:
+    #     dest: /etc/systemd/system/docker.service.d/http-proxy.conf
+    #     mode: "0644"
+    #     content: |
+    #       [Service]
+    #       Environment="HTTP_PROXY=http://127.0.0.1:10808"
+    #       Environment="HTTPS_PROXY=http://127.0.0.1:10808"
+    #       Environment="NO_PROXY=localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.aliyuncs.com"
+
+    # - name: Restart Docker if proxy config changed
+    #   ansible.builtin.service:
+    #     name: docker
+    #     state: restarted
+    #     daemon_reload: true
+    #   when: "'Configure Docker daemon to use local mixed proxy 10808' in ansible_run_tags or not ansible_check_mode"
 
     # - name: Deploy Docker daemon.json from template
     #   ansible.builtin.template:
@@ -89,76 +166,76 @@
     #     state: restarted
     #     enabled: true
 
-- name: Ensure Rrequired Directories Exist
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: '0755'
-  loop: "{{ skyline_required_directories }}"
+# - name: Ensure Rrequired Directories Exist
+#   ansible.builtin.file:
+#     path: "{{ item }}"
+#     state: directory
+#     mode: '0755'
+#   loop: "{{ skyline_required_directories }}"
 
-- name: Deploy Skyline Service
-  block:
-    - name: Render Skyline configure file from templates
-      ansible.builtin.template:
-        src: "{{ skyline_conf_template }}"
-        dest: "{{ skyline_conf_path }}"
-        mode: '0644'
+# - name: Deploy Skyline Service
+#   block:
+#     - name: Render Skyline configure file from templates
+#       ansible.builtin.template:
+#         src: "{{ skyline_conf_template }}"
+#         dest: "{{ skyline_conf_path }}"
+#         mode: '0644'
 
-    - name: Pull Skyline Docker Image
-      community.docker.docker_image:
-        name: "{{ skyline_docker_image }}"
-        source: pull
+#     - name: Pull Skyline Docker Image
+#       community.docker.docker_image:
+#         name: "{{ skyline_docker_image }}"
+#         source: pull
 
-    - name: Run Skyline BootStrape Container
-      community.docker.docker_container:
-        name: skyline_bootstrap
-        image: "{{ skyline_docker_image }}"
-        state: started
-        detach: true
-        network_mode: host
-        volumes:
-          - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
-          - "/var/log:/var/log"
-        env:
-          KOLLA_BOOTSTRAP: ""
+#     - name: Run Skyline BootStrape Container
+#       community.docker.docker_container:
+#         name: skyline_bootstrap
+#         image: "{{ skyline_docker_image }}"
+#         state: started
+#         detach: true
+#         network_mode: host
+#         volumes:
+#           - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
+#           - "/var/log:/var/log"
+#         env:
+#           KOLLA_BOOTSTRAP: ""
 
-    - name: Wait for bootstrap container to finish
-      ansible.builtin.shell: |
-        set -o pipefail
-        while docker ps -a --filter "name=skyline_bootstrap" --format "{{ "{{.Status}}" }}" | grep -q "^Up"; do
-          sleep 2
-        done
-      args:
-        executable: /bin/bash
-      changed_when: false
+#     - name: Wait for bootstrap container to finish
+#       ansible.builtin.shell: |
+#         set -o pipefail
+#         while docker ps -a --filter "name=skyline_bootstrap" --format "{{ "{{.Status}}" }}" | grep -q "^Up"; do
+#           sleep 2
+#         done
+#       args:
+#         executable: /bin/bash
+#       changed_when: false
 
-    - name: Show bootstrap logs
-      ansible.builtin.command:
-        cmd: docker logs skyline_bootstrap
-      register: skyline_bootstrap_logs
-      changed_when: false
+#     - name: Show bootstrap logs
+#       ansible.builtin.command:
+#         cmd: docker logs skyline_bootstrap
+#       register: skyline_bootstrap_logs
+#       changed_when: false
 
-    - name: Print bootstrap logs
-      ansible.builtin.debug:
-        msg: "{{ skyline_bootstrap_logs.stdout_lines }}"
+#     - name: Print bootstrap logs
+#       ansible.builtin.debug:
+#         msg: "{{ skyline_bootstrap_logs.stdout_lines }}"
 
-    - name: Remove Skyline bootstrap container
-      community.docker.docker_container:
-        name: skyline_bootstrap
-        state: absent
-        force_kill: true
+#     - name: Remove Skyline bootstrap container
+#       community.docker.docker_container:
+#         name: skyline_bootstrap
+#         state: absent
+#         force_kill: true
 
-    - name: Run Skyline final container
-      community.docker.docker_container:
-        name: skyline
-        image: "{{ skyline_docker_image }}"
-        state: started
-        restart_policy: always
-        detach: true
-        network_mode: host
-        volumes:
-          - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
-          - "/var/log:/var/log"
+#     - name: Run Skyline final container
+#       community.docker.docker_container:
+#         name: skyline
+#         image: "{{ skyline_docker_image }}"
+#         state: started
+#         restart_policy: always
+#         detach: true
+#         network_mode: host
+#         volumes:
+#           - "{{ skyline_conf_path }}:/etc/skyline/skyline.yaml"
+#           - "/var/log:/var/log"
 
 - name: Create Mark file to indicate that the tasks have been run
   ansible.builtin.file:
