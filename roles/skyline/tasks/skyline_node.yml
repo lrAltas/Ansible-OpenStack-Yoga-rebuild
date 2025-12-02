@@ -50,7 +50,7 @@
     - name: Pull 99cloud/skyline:latest from docker.1panel.live
       containers.podman.podman_image:
         name: docker.1panel.live/99cloud/skyline  # registry + namespace + image
-        tag: latest  # 可省略，默认 latest
+        tag: 2025.02  # 可省略，默认 latest
         state: present  # 确保存在
         pull: true  # 默认拉取
         force: false  # 如果已存在，不强制拉取（改 true 强制更新）
@@ -62,7 +62,7 @@
     - name: Run Skyline bootstrap Container
       containers.podman.podman_container:
         name: skyline_bootstrap                     # --name
-        image: docker.1panel.live/99cloud/skyline:latest   # 你现在用的 registry
+        image: docker.1panel.live/99cloud/skyline:2025.02   # 你现在用的 registry
         state: started                              # 自动 pull + 启动
         detach: true                                # -d
         env:                                        # -e
@@ -71,11 +71,10 @@
           - /etc/skyline/skyline.yaml:/etc/skyline/skyline.yaml
           - /var/log:/var/log
         network_mode: host                          # --net=host
-        restart_policy: false                          # 不自动重启（bootstrap 通常只跑一次）
+        restart_policy: "unless-stopped"                         # 不自动重启（bootstrap 通常只跑一次）
 
     - name: Wait for bootstrap container to finish
       ansible.builtin.pause:
-        minutes: 0
         seconds: 12
 
     - name: Force remove skyline_bootstrap container
@@ -87,7 +86,7 @@
     - name: Run Skyline final Container
       containers.podman.podman_container:
         name: skyline
-        image: docker.1panel.live/99cloud/skyline:latest
+        image: docker.1panel.live/99cloud/skyline:2025.02
         state: started
         detach: true
         restart_policy: always

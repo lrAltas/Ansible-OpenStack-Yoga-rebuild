@@ -25,18 +25,14 @@
 
 # 这块是配置主机上的hosts文件，添加主机名和IP地址的映射
 # This block configures the hosts file on the host, adding mappings of hostnames to IP
-- name: Configure add host_namppings to hosts file
+- name: Configure add host mappings to hosts file
   ansible.builtin.blockinfile:
     path: /etc/hosts
     marker: "# {mark} ANSIBLE MANAGED BLOCK - INVENTORY HOSTS"
     backup: true
     block: |
       {% for host in groups['all'] %}
-      {%   set ip = hostvars[host]['ansible_host']
-                   | default(hostvars[host]['inventory_hostname']) %}
-      {%   set name = hostvars[host]['inventory_hostname'] %}
-      {%   set short = hostvars[host]['inventory_hostname_short'] %}
-      {{ ip }} {{ name }}{% if short is defined %} {{ short }}{% endif %}
+      {{ hostvars[host].ansible_host | default('127.0.0.1') }} {{ hostvars[host].inventory_hostname }}
       {% endfor %}
 
 # 弃用的写法
@@ -51,7 +47,7 @@
 # 2025.12.01 We found that if all tasks success ,the hostname shouldent be changed again.
 # So we should set the hostname only once ,by playbook
 - name: Set hostnames
-  ansible.builtiin.hostname:
+  ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
 # 在示例环境中，我们需要需要关闭防火墙以避免影响服务间的通信

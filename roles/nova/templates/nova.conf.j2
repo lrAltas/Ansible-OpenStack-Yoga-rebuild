@@ -3,12 +3,12 @@ compute_driver = libvirt.LibvirtDriver
 log_dir = /var/log/nova
 lock_path = /var/lock/nova
 state_path = /var/lib/nova
-transport_url = rabbit://openstack:{{ nova_openstack_rabbitmq_user_password }}@controller:5672/
+transport_url = rabbit://openstack:{{ nova_openstack_rabbitmq_user_password }}@{{ groups['controller'][0] }}:5672/
 my_ip = {{ ansible_host }}
 [api]
 auth_strategy = keystone
 [api_database]
-connection = mysql+pymysql://nova:{{ nova_db_conf.nova_db_user_password }}@controller/nova_api
+connection = mysql+pymysql://nova:{{ nova_db_conf.nova_db_user_password }}@{{ groups['controller'][0] }}/nova_api
 [barbican]
 [barbican_service_user]
 [cache]
@@ -20,12 +20,12 @@ connection = mysql+pymysql://nova:{{ nova_db_conf.nova_db_user_password }}@contr
 [cors]
 [cyborg]
 [database]
-connection = mysql+pymysql://nova:{{ nova_db_conf.nova_db_user_password }}@controller/nova
+connection = mysql+pymysql://nova:{{ nova_db_conf.nova_db_user_password }}@{{ groups['controller'][0] }}/nova
 [devices]
 [ephemeral_storage_encryption]
 [filter_scheduler]
 [glance]
-api_servers = http://controller:9292
+api_servers = http://{{ groups['controller'][0] }}:9292
 [guestfs]
 [healthcheck]
 [hyperv]
@@ -34,9 +34,9 @@ api_servers = http://controller:9292
 [key_manager]
 [keystone]
 [keystone_authtoken]
-www_authenticate_uri = http://controller:5000/
-auth_url = http://controller:5000/
-memcached_servers = controller:11211
+www_authenticate_uri = http://{{ groups['controller'][0] }}:5000/
+auth_url = http://{{ groups['controller'][0] }}:5000/
+memcached_servers = {{ groups['controller'][0] }}:11211
 auth_type = password
 project_domain_name = Default
 user_domain_name = Default
@@ -64,7 +64,7 @@ project_domain_name = Default
 project_name = service
 auth_type = password
 user_domain_name = Default
-auth_url = http://controller:5000/v3
+auth_url = http://{{ groups['controller'][0] }}:5000/v3
 username = placement
 password = {{ nova_openstack_service_password.placement  }}
 [powervm]

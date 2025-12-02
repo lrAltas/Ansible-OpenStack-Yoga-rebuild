@@ -24,7 +24,7 @@ skyline_old_docker_packages:
 skyline_docker_repo_url: "https://mirrors.huaweicloud.com/docker-ce/linux/centos/docker-ce.repo"
 skyline_docker_repo_path: "/etc/yum.repos.d/docker-ce.repo"
 
-skyline_docker_ce_packages:
+skyline_podman_package:
   - podman
   - podman-docker
   - dnf-utils

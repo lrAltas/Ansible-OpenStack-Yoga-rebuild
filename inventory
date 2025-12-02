@@ -1,7 +1,7 @@
 [controller]
-controller ansible_host=10.1.10.50
+ctl31 ansible_host=10.1.10.50
 [compute]
-compute01 ansible_host=10.1.10.51
-compute02 ansible_host=10.1.10.52
+com31-01 ansible_host=10.1.10.51
+com31-02 ansible_host=10.1.10.52
 [skyline]
-skyline ansible_host=10.1.10.49
+sky31 ansible_host=10.1.10.49

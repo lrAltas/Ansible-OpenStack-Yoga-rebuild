@@ -120,9 +120,9 @@
         region: "{{ nova_region }}"
         state: present
       loop:
-        - { endpoint_interface: public, url: "http://controller:8774/v2.1" }
-        - { endpoint_interface: admin, url: "http://controller:8774/v2.1" }
-        - { endpoint_interface: internal, url: "http://controller:8774/v2.1" }
+        - { endpoint_interface: public, url: "http://{{ groups['controller'][0] }}:8774/v2.1" }
+        - { endpoint_interface: admin, url: "http://{{ groups['controller'][0] }}:8774/v2.1" }
+        - { endpoint_interface: internal, url: "http://{{ groups['controller'][0] }}:8774/v2.1" }
 
 - name: Install nova packages and deploy nova configuration
   block:
