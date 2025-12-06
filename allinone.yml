@@ -25,8 +25,15 @@
     - nova
     - neutron
 
+
+- name: Configure skyline controller node
+  hosts: controller
+  serial: 4
+  roles:
+    - skyline
+
 - name: Configure Skyline Node
   hosts: skyline
-  serial: 4
+  serial: 5
   roles:
     - skyline
