@@ -3,5 +3,5 @@
   hosts: skyline
   serial: 4
   roles:
+    - env_init
     - skyline
-
